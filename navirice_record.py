@@ -91,13 +91,14 @@ class Window(Frame):
                 img_set, self.last_count = navirice_get_image(DEFAULT_HOST, DEFAULT_PORT, self.last_count)
             if(img_set != None):
                 if self.should_record:
-                    processThread =Thread(target=navirice_img_set_write_file, args=[self.session_name, img_set, self.last_count])
-                    processThread.start()
-
+                    #processThread =Thread(target=navirice_img_set_write_file, args=[self.session_name, img_set, self.last_count])
+                    #processThread.start()
+                    navirice_img_set_write_file(self.session_name, img_set, self.last_count)
                 cv2.imshow("RGB", naviriceImageToNp(img_set.RGB))
                 cv2.imshow("DEPTH", naviriceImageToNp(img_set.Depth))
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     print("q pressed in cv window")
+                del img_set
 
 root.geometry("170x65")
 root.attributes('-type', 'dialog')

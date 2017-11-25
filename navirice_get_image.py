@@ -2,10 +2,28 @@
 import socket
 import time
 import os
+import numpy as np
 
 os.system("protoc -I=. --python_out=. navirice_image.proto")
 
 import navirice_image_pb2
+
+def naviriceImageToNp(img):
+    tp = img.data_type
+    divisor = 1
+    if(tp == navirice_image_pb2.ProtoImage.FLOAT):
+        tp = np.float32
+        img.channels = 1
+        divisor = 4500.0
+    else:
+        tp = np.uint8
+    rgb_raw = np.frombuffer(img.data, dtype=tp, count=img.width*img.height*img.channels)
+    if(img.data_type == navirice_image_pb2.ProtoImage.FLOAT):
+        rgb_raw = (rgb_raw) / divisor
+    im = rgb_raw.reshape((img.height, img.width, img.channels))
+    return im
+
+
 
 def navirice_get_image(host, port, last_count):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

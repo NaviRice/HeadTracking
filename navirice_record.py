@@ -10,21 +10,6 @@ from threading import Thread
 DEFAULT_HOST = '127.0.0.1'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
 
-def naviriceImageToNp(img):
-    tp = img.data_type
-    divisor = 1
-    if(tp == navirice_image_pb2.ProtoImage.FLOAT):
-        tp = np.float32
-        img.channels = 1
-        divisor = 4500.0
-    else:
-        tp = np.uint8
-    rgb_raw = np.frombuffer(img.data, dtype=tp, count=img.width*img.height*img.channels)
-    if(img.data_type == navirice_image_pb2.ProtoImage.FLOAT):
-        rgb_raw = (rgb_raw) / divisor
-    im = rgb_raw.reshape((img.height, img.width, img.channels))
-    return im
-
 def navirice_img_set_write_file(session_name, img_set, last_count):
     name = 'DATA/' + session_name + "_" + str(last_count) + ".img_set"
     name = name.replace('\n', '')

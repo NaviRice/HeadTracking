@@ -1,23 +1,33 @@
-from navirice_get_image import *
-
-import cv2
 import numpy as np
+import tensorflow as tf
+import os
+from navirice_get_image import * 
+import random
 
-DEFAULT_HOST = '127.0.0.1'  # The remote host
-DEFAULT_PORT = 29000        # The same port as used by the server
+tf.logging.set_verbosity(tf.logging.INFO)
 
-last_count = 0
-while(1):
-    img_set, last_count = navirice_get_image(DEFAULT_HOST, DEFAULT_PORT, last_count)
-    if(img_set != None):
-        print("IMG#: ", img_set.count)
-        print("Depth width: ", img_set.Depth.width)
-        print("Depth height: ", img_set.Depth.height)
-        print("Depth channels: ", img_set.Depth.channels)
-        rgb_raw = np.frombuffer(img_set.Depth.data, dtype=np.float32, count=img_set.Depth.width*img_set.Depth.height*1)
-        rgb_raw = (rgb_raw/4500)
-        im = rgb_raw.reshape((img_set.Depth.height, img_set.Depth.width, 1))
-        cv2.imshow('', im)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+def load_data_file_list(path):
+    dir_file_list = os.listdir(path)
+    data_file_list = []
+    for item in dir_file_list:
+        if item.endswith('.img_set'):
+            data_file_list.append(path + "/" + item)
+    return data_file_list
 
+def print_image_stats(path):
+    data_file_list = load_data_file_list(path)
+    pick = random.choice(data_file_list) 
+    f = open(pick, "rb")
+    data = f.read()
+    img_set = navirice_image_pb2.ProtoImageSet()
+    img_set.ParseFromString(data)
+    print("======== FILE STATS ========")
+    print("Path:\t", pick)
+    print("RGB:\t", img_set.RGB.width, "x", img_set.RGB.height)
+    print("DEPTH:\t", img_set.Depth.width, "x", img_set.Depth.height)
+    print("IR:\t", img_set.IR.width, "x", img_set.IR.height)
+    print("======== END ========")
+
+
+print_image_stats("./DATA")
+    

@@ -30,4 +30,30 @@ def print_image_stats(path):
 
 
 print_image_stats("./DATA")
+
+# Sample output
+'''
+======== FILE STATS ========
+Path:    ./DATA/default_3718.img_set
+RGB:     1920 x 1080
+DEPTH:   512 x 424
+IR:  512 x 424
+======== END ========
+'''
+
+# This means that we need an input layer that is 512x424 pixels
+# with a 5x5x1 layer this makes the second layer 102x84 in size
+# lets define the model:
+def cnn_model_fn(features, labels, mode):
+    input_layer = tf.reshape(features["x"], [-1, 512, 424, 1])
+
+    conv1 = tf.layers.conv2d(
+            inputs=input_layer,
+            filters=102*84,
+            kernel_size=[5, 5],
+            padding="same",
+            activation=tf.nn.relu)
+
+    pool1 = tf.layers.max_pooling2d(inputs = conv1, pool_size=[2,2], strides = 2)
     
+    print(pool1.get_shape())

@@ -1,4 +1,5 @@
 from navirice_get_image import *
+from navirice_helpers import navirice_img_set_write_file
 import navirice_image_pb2
 
 from tkinter import *
@@ -10,20 +11,11 @@ from threading import Thread
 DEFAULT_HOST = '127.0.0.1'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
 
-def navirice_img_set_write_file(session_name, img_set, last_count):
-    name = 'DATA/' + session_name + "_" + str(last_count) + ".img_set"
-    name = name.replace('\n', '')
-    print("Recording to: ", name)
-    f = open(name, 'wb')
-    f.write(img_set.SerializeToString())
-    f.close()
-
-
-root = Tk()
 
 class Window(Frame):
+
     def __init__(self, master=None):
-        Frame.__init__(self, master)             
+        Frame.__init__(self, master)
         self.master = master
         self.init_window()
 
@@ -34,7 +26,7 @@ class Window(Frame):
         self.session_name = "default"
         self.last_count = 0
         self.master.title("NAVIRICE_RECORDER")
-      
+
         recordButton = Button(self, text="RECORD", command=self.record)
         recordButton.place(x=5, y=0)
 
@@ -45,9 +37,9 @@ class Window(Frame):
         self.canvas = Canvas(self, height=30, width=30)
         self.print_states()
         self.pack(fill=BOTH, expand=1)
-        
+
         thread = Thread(target = self.thread_stream)
-        thread.start()        
+        thread.start()
 
     def print_states(self):
         self.canvas.delete()
@@ -68,7 +60,6 @@ class Window(Frame):
     def kill(self):
         self.should_run = False
 
-
     def thread_stream(self):
         while(self.should_run):
             img_set = None
@@ -85,11 +76,18 @@ class Window(Frame):
                     print("q pressed in cv window")
                 del img_set
 
-root.geometry("170x65")
-root.attributes('-type', 'dialog')
-app = Window(root)
-def on_quit():
-    app.kill()
-    exit()
-root.protocol("WM_DELETE_WINDOW", on_quit)
-root.mainloop()
+
+def main():
+    root = Tk()
+    root.geometry("170x65")
+    root.attributes('-type', 'dialog')
+    app = Window(root)
+    def on_quit():
+        app.kill()
+        exit()
+    root.protocol("WM_DELETE_WINDOW", on_quit)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
+

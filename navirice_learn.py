@@ -6,6 +6,7 @@ import random
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
+
 def load_data_file_list(path):
     dir_file_list = os.listdir(path)
     data_file_list = []
@@ -13,6 +14,7 @@ def load_data_file_list(path):
         if item.endswith('.img_set'):
             data_file_list.append(path + "/" + item)
     return data_file_list
+
 
 def print_image_stats(path):
     data_file_list = load_data_file_list(path)
@@ -29,5 +31,10 @@ def print_image_stats(path):
     print("======== END ========")
 
 
-print_image_stats("./DATA")
-    
+def main():
+    print_image_stats("./DATA")
+
+
+if __name__ == "__main__":
+    main()
+

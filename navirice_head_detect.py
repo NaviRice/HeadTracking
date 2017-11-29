@@ -1,4 +1,5 @@
 # from navirice_get_image import *
+from navirice_helpers import navirice_image_to_np
 
 import cv2
 import numpy as np

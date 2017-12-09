@@ -27,7 +27,7 @@ def main():
 
         if possible_head_data is None:
             print("No head detected")
-            cv2.imshow("working", working_image)
+            #cv2.imshow("working", working_image)
             continue
 
         (x, y, radius) = possible_head_data
@@ -35,7 +35,7 @@ def main():
         (scaled_x, scaled_y, scaled_radius) = get_scaled(x, y, radius, working_image)
 
         resize_scale = 0.3
-        cv2.circle(working_image, (scaled_x, scaled_y), scaled_radius, (255, 255, 255), thickness=10, lineType=8, shift=0)
+        #cv2.circle(working_image, (scaled_x, scaled_y), scaled_radius, (255, 255, 255), thickness=10, lineType=8, shift=0)
         binary_image = get_labeled_data(depth_image, scaled_x, scaled_y, scaled_radius)
         # Resize if only rgb
         #working_image = cv2.resize(working_image, None, fx=resize_scale, fy=resize_scale, interpolation = cv2.INTER_CUBIC)
@@ -82,6 +82,7 @@ def get_labeled_data(depth_image, x, y, radius):
 
     modified_image[threshold_indecies] = white
     modified_image[modified_image != white] = black
+    #cv2.imshow("modified", modified_image)
 
 
 def _get_cropped_image(image, x, y, radius):
@@ -92,9 +93,6 @@ def _get_cropped_image(image, x, y, radius):
     index_crop_up = (y-radius) if (y-radius) > 0 else 0
     index_crop_down = (y+radius) if (y+radius) < height else height
     cropped_image = image[index_crop_up:index_crop_down, index_crop_left:index_crop_right]
-
-    # Todo: remove
-    cv2.imshow("cropped", cropped_image)
 
     return cropped_image
 

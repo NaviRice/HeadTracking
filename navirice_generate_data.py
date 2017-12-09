@@ -73,11 +73,14 @@ def get_labeled_data(depth_image, x, y, radius):
     lower_threshold = center_value - head_distance
     upper_threshold = center_value + head_distance
 
-    # Set everything outside threshold to be white, and within to be black
+    # Set everything outside threshold to be black, and within to be white
     white = 255
     black = 0
-    modified_image[lower_threshold > modified_image] = white
-    modified_image[modified_image > upper_threshold] = white
+
+    threshold_indecies = np.logical_and(
+            lower_threshold < modified_image, modified_image < upper_threshold)
+
+    modified_image[threshold_indecies] = white
     modified_image[modified_image != white] = black
 
 

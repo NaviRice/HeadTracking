@@ -17,9 +17,9 @@ def navirice_image_to_np(img):
         tp = np.float32
         img.channels = 1
         # IR data comes in short. Dividing the data results in values from 0 to 1
-        divisor = 2**16
+        # divisor = 2**16
         # Depth data to be converted from 0 to 1
-        # divisor = 4500
+        divisor = 4500
     else:
         tp = np.uint8
     rgb_raw = np.frombuffer(img.data, dtype=tp, count=img.width*img.height*img.channels)

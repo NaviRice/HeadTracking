@@ -67,9 +67,11 @@ def get_labeled_data(depth_image, x, y, radius):
     center_y = int(modified_image.shape[0]/2)
     center_value = modified_image[center_x, center_y]
 
+    head_distance = 0.25
+
     # Create threshold of half a meter
-    lower_threshold = center_value - center_x
-    upper_threshold = center_value + center_y
+    lower_threshold = center_value - head_distance
+    upper_threshold = center_value + head_distance
 
     # Set everything outside threshold to be white, and within to be black
     white = 255

@@ -34,5 +34,5 @@ def map_depth_and_rgb(rgb_image, depth_image):
     np_rgb = navirice_image_to_np(img_set.RGB)
     np_depth = navirice_image_to_np(img_set.Depth)
     cropped_rgb = rgb_image[:,230:-150]
-    cropped_depth = depth_image[30:-30,:] * 2**16 / 4500.0
+    cropped_depth = depth_image[30:-30,:] / 4500.0
     return (cropped_rgb, cropped_depth)

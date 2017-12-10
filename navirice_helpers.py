@@ -28,3 +28,11 @@ def navirice_image_to_np(img):
     im = rgb_raw.reshape((img.height, img.width, img.channels))
     return im
 
+
+def map_depth_and_rgb(rgb_image, depth_image):
+    """Takes in rgb_image and depth_image and returns cropped_rgb an cropped_depth."""
+    np_rgb = navirice_image_to_np(img_set.RGB)
+    np_depth = navirice_image_to_np(img_set.Depth)
+    cropped_rgb = rgb_image[:,230:-150]
+    cropped_depth = depth_image[30:-30,:] * 2**16 / 4500.0
+    return (cropped_rgb, cropped_depth)

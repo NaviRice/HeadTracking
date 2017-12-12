@@ -83,12 +83,12 @@ def generate_batch(count, real_list, expected_list):
 def cnn_model_fn(features):
     input_layer = tf.reshape(features, [-1, 364, 512, 1])
     
-    encoder1 = coder(input_layer, [2,2,1,128], True)
+    encoder1 = coder(input_layer, [5,5,1,32], True)
     pool1 = max_pool_2x2(encoder1)
-    encoder2 = coder(pool1, [4,4,128,32], True)
+    encoder2 = coder(pool1, [5,5,32,64], True)
     pool2 = max_pool_2x2(encoder2)
-    encoder3 = coder(pool2, [5,5,32,4], True)  
-    decoder1 = coder(encoder3, [5,5,4,1], False) 
+    encoder3 = coder(pool2, [5,5,64,16], True)  
+    decoder1 = coder(encoder3, [5,5,16,1], False) 
 
     h_final = tf.reshape(decoder1, [-1, 91, 128]) 
     return h_final
@@ -133,9 +133,10 @@ def main():
 
     y_conv = cnn_model_fn(x)
 
-    cost = tf.square(y_ - y_conv)
-    cost_mean = tf.reduce_sum(cost)
-    train_step = tf.train.AdamOptimizer(0.1).minimize(cost)
+    #cost = tf.square(y_ - y_conv)
+    #cost_mean = tf.reduce_sum(cost)
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv))
+    train_step = tf.train.AdamOptimizer(1e-4).minimize(cost)
     
     sess = tf.Session()
     init = tf.global_variables_initializer()

@@ -88,9 +88,10 @@ def cnn_model_fn(features):
     encoder2 = coder(pool1, [5,5,32,64], True)
     pool2 = max_pool_2x2(encoder2)
     encoder3 = coder(pool2, [5,5,64,16], True)  
-    decoder1 = coder(encoder3, [5,5,16,1], False) 
+    decoder1 = coder(encoder3, [5,5,16,1], False)
+    last = tf.sigmoid(decoder1)
 
-    h_final = tf.reshape(decoder1, [-1, 91, 128]) 
+    h_final = tf.reshape(last, [-1, 91, 128]) 
     return h_final
 
 def coder(input_layer, shape, do_relu):
@@ -135,7 +136,7 @@ def main():
 
     #cost = tf.square(y_ - y_conv)
     #cost_mean = tf.reduce_sum(cost)
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv))
+    cost = tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv)
     train_step = tf.train.AdamOptimizer(1e-4).minimize(cost)
     
     sess = tf.Session()

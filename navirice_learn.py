@@ -83,12 +83,18 @@ def generate_batch(count, real_list, expected_list):
 def cnn_model_fn(features):
     input_layer = tf.reshape(features, [-1, 364, 512, 1])
     
-    encoder1 = coder(input_layer, [5,5,1,32], True)
+    encoder1 = coder(input_layer, [10,10,1,32], True)
     pool1 = max_pool_2x2(encoder1)
-    encoder2 = coder(pool1, [5,5,32,64], True)
+    encoder2 = coder(pool1, [7,7,32,64], True)
     pool2 = max_pool_2x2(encoder2)
-    encoder3 = coder(pool2, [5,5,64,16], True)  
-    decoder1 = coder(encoder3, [5,5,16,1], False)
+    encoder3 = coder(pool2, [5,5,64,48], True)  
+    encoder4 = coder(encoder3, [5,5,48,32], True)  
+    encoder5 = coder(encoder4, [5,5,32,24], True)  
+    encoder6 = coder(encoder5, [5,5,24,16], True)  
+    encoder7 = coder(encoder6, [5,5,16,12], True)  
+    encoder8 = coder(encoder7, [5,5,12,8], True)  
+    encoder9 = coder(encoder8, [5,5,8,4], True)   
+    decoder1 = coder(encoder9, [5,5,4,1], False)
     last = tf.sigmoid(decoder1)
 
     h_final = tf.reshape(last, [-1, 91, 128]) 

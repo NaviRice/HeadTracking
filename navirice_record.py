@@ -1,5 +1,6 @@
-from navirice_get_image import *
+from navirice_get_image import navirice_get_image
 from navirice_helpers import navirice_img_set_write_file
+from navirice_helpers import navirice_image_to_np
 import navirice_image_pb2
 
 from tkinter import *
@@ -70,8 +71,8 @@ class Window(Frame):
                     #processThread =Thread(target=navirice_img_set_write_file, args=[self.session_name, img_set, self.last_count])
                     #processThread.start()
                     navirice_img_set_write_file(self.session_name, img_set, self.last_count)
-                cv2.imshow("RGB", naviriceImageToNp(img_set.RGB))
-                cv2.imshow("DEPTH", naviriceImageToNp(img_set.Depth))
+                cv2.imshow("RGB", navirice_image_to_np(img_set.RGB))
+                cv2.imshow("DEPTH", navirice_image_to_np(img_set.Depth))
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     print("q pressed in cv window")
                 del img_set

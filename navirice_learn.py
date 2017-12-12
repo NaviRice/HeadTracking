@@ -1,8 +1,12 @@
 import numpy as np
 import tensorflow as tf
 import os
-from navirice_get_image import * 
+import navirice_image_pb2 
 import random
+
+from navirice_generate_data import generate_bitmap_label
+from navirice_helpers import navirice_image_to_np
+from navirice_helpers import map_depth_and_rgb
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -39,6 +43,31 @@ def print_image_stats(path):
     print("IR:\t", img_set.IR.width, "x", img_set.IR.height)
     print("======== END ========")
 
+def generate_batch(count, data_list):
+    i = 0
+    real = []
+    expected = []
+    while i < count:
+        ri = random.randint(0, len(data_list))
+        with open(data_list[ri], 'rb') as ci:
+            data=ci.read()
+            img_set = navirice_image_pb2.ProtoImageSet()
+            img_set.ParseFromString(data)
+            if img_set.RGB is not None and img_set.Depth is not None:
+                rgb_image = navirice_image_to_np(img_set.RGB)
+                depth_image = navirice_image_to_np(img_set.Depth)
+                (rgb_image, depth_image) = map_depth_and_rgb(rgb_image, depth_image)
+                possible_bitmap = generate_bitmap_label(rgb_image, depth_image)
+                if possible_bitmap is not None:
+                    print(depth_image.shape)
+                    #real.append(tf.convert_to_tensor(depth_image, dtype=np.float32))
+                    #expected.append(tf.convert_to_tensor(possible_bitmap, dtype=np.float32))
+                    real.append(depth_image)
+                    expected.append(possible_bitmap)
+                    i += 1
+    return (real, expected)
+
+
 
 
 # This means that we need an input layer that is 512x424 pixels
@@ -55,11 +84,17 @@ def cnn_model_fn(features, labels, mode):
             activation=tf.nn.relu)
 
     pool1 = tf.layers.max_pooling2d(inputs = conv1, pool_size=[2,2], strides = 2)
-    
+
     print(pool1.get_shape())
 
 def main():
-    print_image_stats("./DATA")
+    data_list = load_data_file_list("./DATA")
+    (reals, expecteds) = generate_batch(10, data_list)
+    sess = tf.Session()
+    init = tf.global_variables_initializer()
+    sess.run(init)
+    print("real's shape: " + str(reals[0].shape))
+    print("expected's shape: " + str(expecteds[0].shape))
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import os
 import navirice_image_pb2
 import cv2
 import random
+import sys
 
 from navirice_generate_data import generate_bitmap_label
 from navirice_helpers import navirice_image_to_np
@@ -44,16 +45,15 @@ def print_image_stats(path):
     print("IR:\t", img_set.IR.width, "x", img_set.IR.height)
     print("======== END ========")
 
-def generate_batch(count, data_list, scale_val):
-    i = 0
+def load_all(data_list, scale_val):
     real = []
     expected = []
-    while i < count:
-        ri = random.randint(0, len(data_list)-1)
-        with open(data_list[ri], 'rb') as ci:
+    for i in range(len(data_list)):
+        with open(data_list[i], 'rb') as ci:
             data=ci.read()
             img_set = navirice_image_pb2.ProtoImageSet()
             img_set.ParseFromString(data)
+            del data
             if img_set.RGB is not None and img_set.Depth is not None:
                 rgb_image = navirice_image_to_np(img_set.RGB)
                 depth_image = navirice_image_to_np(img_set.Depth)
@@ -64,39 +64,44 @@ def generate_batch(count, data_list, scale_val):
                     real.append(depth_image)
                     scaled_bitmap = cv2.resize(possible_bitmap,None,fx=scale_val, fy=scale_val, interpolation = cv2.INTER_CUBIC)
                     expected.append(scaled_bitmap)
-                    i += 1
+            del img_set
     return (real, expected)
 
 
-def cnn_model_fn(features, labels):
+def generate_batch(count, real_list, expected_list):
+    i = 0
+    real = []
+    expected = []
+    while i < count:
+        ri = random.randint(0, len(real_list)-1)
+        real.append(real_list[ri])
+        expected.append(expected_list[ri])
+        i += 1
+    return (real, expected)
+
+
+def cnn_model_fn(features):
     input_layer = tf.reshape(features, [-1, 364, 512, 1])
+    
+    encoder1 = coder(input_layer, [2,2,1,128], True)
+    pool1 = max_pool_2x2(encoder1)
+    encoder2 = coder(pool1, [4,4,128,32], True)
+    pool2 = max_pool_2x2(encoder2)
+    encoder3 = coder(pool2, [5,5,32,4], True)  
+    decoder1 = coder(encoder3, [5,5,4,1], False) 
 
-    W_conv1 = weight_variable([5,5,1,32])
-    b_conv1 = bias_variable([32])
-    h_conv1 = tf.nn.relu(conv2d(input_layer, W_conv1))
-
-    h_pool2 = max_pool_2x2(h_conv1)
-    W_conv2 = weight_variable([5,5,32,64])
-    b_conv2 = bias_variable([64])
-    h_conv2 = tf.nn.relu(conv2d(h_pool2, W_conv2))
-
-    h_pool3 = max_pool_2x2(h_conv2)
-    # img down to 91 by 128 by 64
-    print("h_pool3: ", h_pool3.get_shape())
-
-    W_conv3 = weight_variable([5,5,64,32])
-    b_conv3 = bias_variable([32])
-    h_conv3 = tf.nn.relu(conv2d(h_pool3, W_conv3))
-
-    W_conv4 = weight_variable([5,5,32,1])
-    b_conv4 = bias_variable([1])
-    h_conv4 = conv2d(h_conv3, W_conv4)
- 
-    h_final = tf.reshape(h_conv4, [-1, 91, 128]) 
+    h_final = tf.reshape(decoder1, [-1, 91, 128]) 
     return h_final
 
-
-
+def coder(input_layer, shape, do_relu):
+    W_conv = weight_variable(shape)
+    if do_relu:
+        h_conv = tf.nn.leaky_relu(conv2d(input_layer, W_conv))
+        return h_conv
+    else:
+        h_conv = conv2d(input_layer, W_conv)
+        return h_conv
+   
 
 def conv2d(x, W):
     """conv2d returns a 2d convolution layer with full stride."""
@@ -119,17 +124,18 @@ def bias_variable(shape):
 
 def main():
     data_list = load_data_file_list("./DATA")
-    (reals, expecteds) = generate_batch(10, data_list, 0.25)
+    (reals, expecteds) = load_all(data_list, 1.0/4)
     print("real's shape: " + str(reals[0].shape))
     print("expected's shape: " + str(expecteds[0].shape))
 
     x = tf.placeholder(tf.float32, [None, 364, 512, 1])
     y_ = tf.placeholder(tf.float32, [None, 91, 128])
 
-    y_conv = cnn_model_fn(x, y_)
+    y_conv = cnn_model_fn(x)
 
-    cost = tf.abs(y_conv - y_)
-    train_step = tf.train.AdamOptimizer(1e-4).minimize(cost)
+    cost = tf.square(y_ - y_conv)
+    cost_mean = tf.reduce_sum(cost)
+    train_step = tf.train.AdamOptimizer(0.1).minimize(cost)
     
     sess = tf.Session()
     init = tf.global_variables_initializer()
@@ -140,22 +146,27 @@ def main():
     print(y_conv.get_shape()) 
     print("-----------------------------------------------")
 
+    cnt = 0
     while(True):
-        (reals, expecteds) = generate_batch(10, data_list, 0.25)
-        print("--------")
-        #print("Cost before: ", sess.run(cost, feed_dict={x: reals, y_: expecteds}))
-        train_step.run(session=sess, feed_dict={x: reals, y_: expecteds})
-        #print("Cost after: ", sess.run(cost, feed_dict={x: reals, y_: expecteds}))
-        print("--------")
-        # see the first image
-        outs = sess.run(y_conv, feed_dict={x: reals})
-        print(len(outs))
-        for i in range(len(reals)):
-            cv2.imshow("input", reals[i])
-            cv2.imshow("expected", expecteds[i])
-            cv2.imshow("output", outs[i])
-            if cv2.waitKey(200) & 0xFF == ord('q'):
-                break
+        cnt += 1
+        print("STEP COUNT: ", cnt)
+        for i in range(100):
+            (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
+            print("-", end='')
+            sys.stdout.flush()
+            train_step.run(session=sess, feed_dict={x: reals_i, y_: expecteds_i})
+        print("|")
+            # see the first image
+       
+        for i in range(10):
+            (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
+            outs = sess.run(y_conv, feed_dict={x: reals_i})
+            for i in range(len(reals_i)):
+                cv2.imshow("input", reals_i[i])
+                cv2.imshow("expected", expecteds_i[i])
+                cv2.imshow("output", outs[i])
+                if cv2.waitKey(5) & 0xFF == ord('q'):
+                    break
 
 if __name__ == "__main__":
     main()

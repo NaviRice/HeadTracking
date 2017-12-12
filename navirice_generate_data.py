@@ -65,14 +65,11 @@ def generate_bitmap_label(rgb_image, depth_image):
     white = 255
     black = 0
     depth_to_meters = 4.5
-    sub_array_with_head = depth_image[head_location_dimensions]*depth_to_meters
-    threshold_indecies = np.logical_and(
-            lower_threshold < sub_array_with_head, sub_array_with_head < upper_threshold)
-    sub_array_with_head[threshold_indecies] = white
-    sub_array_with_head[sub_array_with_head != white] = black
-    sub_array_with_head[sub_array_with_head == white] = 1
+    sub_array_with_head = depth_image[head_location_dimensions] * depth_to_meters
+    threshold_indecies = np.logical_or(sub_array_with_head < lower_threshold, upper_threshold < sub_array_with_head)
+    sub_array_with_head[threshold_indecies] = black
     bitmap_image = np.zeros(depth_image.shape) # initialize compeletly black label
-    bitmap_image[head_location_dimensions] = sub_array_with_head
+    bitmap_image[head_location_dimensions] = sub_array_with_head/depth_to_meters
     return bitmap_image
 
 

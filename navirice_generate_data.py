@@ -58,7 +58,7 @@ def generate_bitmap_label(rgb_image, depth_image):
     (x, y, radius) = get_scaled(x, y, radius, depth_image) # Scale data to depth image
     head_location_dimensions = _get_head_location_dimensions(depth_image, x, y, radius)
     center_value = _get_center_of_head(head_location_dimensions, depth_image)
-    head_distance = 0.25 # Create threshold of half a meter
+    head_distance = 1.0 # Create threshold of half a meter
     lower_threshold = center_value - head_distance
     upper_threshold = center_value + head_distance
     # Set everything outside threshold to be black, and within to be white

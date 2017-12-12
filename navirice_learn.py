@@ -45,7 +45,7 @@ def print_image_stats(path):
     print("IR:\t", img_set.IR.width, "x", img_set.IR.height)
     print("======== END ========")
 
-def load_all(data_list, scale_val):
+def load_train_set(data_list, scale_val):
     real = []
     expected = []
     for i in range(len(data_list)):
@@ -66,6 +66,23 @@ def load_all(data_list, scale_val):
                     expected.append(scaled_bitmap)
             del img_set
     return (real, expected)
+
+def load_test_set(data_list):
+    real = []
+    for i in range(len(data_list)):
+        with open(data_list[i], 'rb') as ci:
+            data=ci.read()
+            img_set = navirice_image_pb2.ProtoImageSet()
+            img_set.ParseFromString(data)
+            del data
+            if img_set.Depth is not None:
+                rgb_image = navirice_image_to_np(img_set.RGB)
+                depth_image = navirice_image_to_np(img_set.Depth)
+                (rgb_image, depth_image) = map_depth_and_rgb(rgb_image, depth_image)
+                real.append(depth_image)
+            del img_set
+    return (real)
+
 
 
 def generate_batch(count, real_list, expected_list):
@@ -130,11 +147,14 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 def main():
-    data_list = load_data_file_list("./DATA")
-    (reals, expecteds) = load_all(data_list, 1.0/4)
+    data_list = load_data_file_list("./train_set")
+    (reals, expecteds) = load_train_set(data_list, 1.0/4)
     print("real's shape: " + str(reals[0].shape))
     print("expected's shape: " + str(expecteds[0].shape))
-
+    
+    data_list = load_data_file_list("./test_set")
+    tests = load_test_set(data_list)
+    
     x = tf.placeholder(tf.float32, [None, 364, 512, 1])
     y_ = tf.placeholder(tf.float32, [None, 91, 128])
 
@@ -158,7 +178,7 @@ def main():
     while(True):
         cnt += 1
         print("STEP COUNT: ", cnt)
-        for i in range(100):
+        for i in range(1000):
             (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
             print("-", end='')
             sys.stdout.flush()
@@ -166,15 +186,12 @@ def main():
         print("|")
             # see the first image
        
-        for i in range(10):
-            (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
-            outs = sess.run(y_conv, feed_dict={x: reals_i})
-            for i in range(len(reals_i)):
-                cv2.imshow("input", reals_i[i])
-                cv2.imshow("expected", expecteds_i[i])
-                cv2.imshow("output", outs[i])
-                if cv2.waitKey(5) & 0xFF == ord('q'):
-                    break
+        for i in range(len(tests)):
+            outs = sess.run(y_conv, feed_dict={x: [tests[i]]})
+            cv2.imshow("input", tests[i])
+            cv2.imshow("output", outs[0])
+            if cv2.waitKey(33) & 0xFF == ord('q'):
+                break
 
 if __name__ == "__main__":
     main()

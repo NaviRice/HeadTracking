@@ -64,6 +64,8 @@ def _run_cascades(image):
             image, scaleFactor = 1.1, minNeighbors=5, minSize=(20, 34),
             flags = cv2.CASCADE_SCALE_IMAGE)
         if(len(boxes) != 0):
+            cascades.remove(cascade)
+            cascades.insert(0, cascade)
             break
 
     return boxes

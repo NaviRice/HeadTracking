@@ -17,7 +17,7 @@ def navirice_image_to_np(img):
         tp = np.float32
         img.channels = 1
         # IR data comes in short. Dividing the data results in values from 0 to 1
-        # divisor = 2**16
+        #divisor = 2**16
         # Depth data to be converted from 0 to 1
         divisor = 4500
     else:
@@ -28,6 +28,21 @@ def navirice_image_to_np(img):
     im = rgb_raw.reshape((img.height, img.width, img.channels))
     return im
 
+
+def navirice_float_to_np(ir_img):
+    tp = ir_img.data_type
+    divisor = 1
+    tp = np.float32
+    ir_img.channels = 1
+    # IR data comes in short. Dividing the data results in values from 0 to 1
+    #divisor = 2**16
+    # Depth data to be converted from 0 to 1
+    #divisor = 4500
+    raw_img= np.frombuffer(ir_img.data, dtype=tp, count=ir_img.width*ir_img.height*ir_img.channels)
+    #if(ir_img.data_type == navirice_image_pb2.ProtoImage.FLOAT):
+    raw_img = (raw_img) / divisor
+    im = raw_img.reshape((ir_img.height, ir_img.width, ir_img.channels))
+    return im
 
 def map_depth_and_rgb(rgb_image, depth_image):
     """Takes in rgb_image and depth_image and returns cropped_rgb an cropped_depth."""

@@ -1,5 +1,6 @@
 from navirice_get_image import *
 from navirice_helpers import navirice_image_to_np
+from navirice_helpers import navirice_float_to_np
 
 import cv2
 import numpy as np
@@ -103,11 +104,20 @@ def main():
         img_set, last_count = navirice_get_image(DEFAULT_HOST, DEFAULT_PORT, last_count)
         if(img_set != None):
             print("IR width: {}\nIR height: {}\nIR channels: {}\n".format(img_set.IR.width, img_set.IR.height, img_set.IR.channels))
-            np_image = navirice_image_to_np(img_set.IR)
+    #rgb_raw = np.frombuffer(img.data, dtype=tp, count=img.width*img.height*img.channels)
+    #if(img.data_type == navirice_image_pb2.ProtoImage.FLOAT):
+    #    rgb_raw = (rgb_raw) / divisor
+    #im = rgb_raw.reshape((img.height, img.width, img.channels))
+    #return im
+            #np_image = navirice_image_to_np(img_set.IR)
+            np_image = navirice_float_to_np(img_set.IR)
             high = np_image.max()
 #            low = np_image.min()
  #           np_image -= low
+
             np_image /= (high/255) #scale from 0-255, brightest pixel in the image being 255
+            #np_image = np_image/(high/255) #scale from 0-255, brightest pixel in the image being 255
+
             np_image = np.array(np_image, dtype='uint8') # convert to uint8, otherwise cv will freak out (no support for anything other than uint8? wtf? what kind of shit is this?)
 #            np_image.convertTo(np_image, CV_U8)
 #            hist = cv2.calcHist(np_image, channels = 1, mask = cv2.Mat())

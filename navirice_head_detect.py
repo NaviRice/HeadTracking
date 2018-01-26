@@ -1,6 +1,6 @@
 from navirice_get_image import *
 from navirice_helpers import navirice_image_to_np
-from navirice_helpers import navirice_float_to_np
+from navirice_helpers import navirice_ir_to_np
 
 import cv2
 import numpy as np
@@ -26,26 +26,26 @@ def get_head_from_img(np_image):
         None (if head is not detected
     """
 
-#i dont bother scaling and graying the image because... its 500 pixels wide and already grayscale
+    #i dont bother scaling and graying the image because... its 500 pixels wide and already grayscale
 #    image = _preprocess_image(np_image)
     image = np_image
     potential_boxes = _run_cascades(image)
 
     if(len(potential_boxes) == 0):
-        # Debug print RGB
-        # cv2.imshow("rgb", image)
+        # cv2.imshow("ir", image)
         return None
 
     (x, y, radius) = _get_head_from_boxes(image, potential_boxes)
     print("scaled: {}, {}, {}".format(x, y, radius))
-    # Debug print RGB
-    #cv2.imshow("rgb", image)
+    # Debug show image ir
+    #cv2.imshow("ir", image)
 
     return (x, y, radius)
 
 
 def _preprocess_image(image):
-    """Returns a smaller and grayscaled image. Smaller to faster process img, grayscale for Haar cascades."""
+    """Returns a smaller and grayscaled image. Smaller to faster process img, grayscale for Haar cascades.
+    Deprecated. Used for Harr Cascades on RGB images. We do Harr Cascades on IR now."""
     resize_scale = 0.3
     resized_img = cv2.resize(
             image,None,fx=resize_scale, fy=resize_scale, interpolation = cv2.INTER_CUBIC)
@@ -106,13 +106,7 @@ def main():
         img_set, last_count = navirice_get_image(DEFAULT_HOST, DEFAULT_PORT, last_count)
         if(img_set != None):
             print("IR width: {}\nIR height: {}\nIR channels: {}\n".format(img_set.IR.width, img_set.IR.height, img_set.IR.channels))
-    #rgb_raw = np.frombuffer(img.data, dtype=tp, count=img.width*img.height*img.channels)
-    #if(img.data_type == navirice_image_pb2.ProtoImage.FLOAT):
-    #    rgb_raw = (rgb_raw) / divisor
-    #im = rgb_raw.reshape((img.height, img.width, img.channels))
-    #return im
-            #np_image = navirice_image_to_np(img_set.IR)
-            np_image = navirice_float_to_np(img_set.IR)
+            np_image = navirice_ir_to_np(img_set.IR)
             high = np_image.max()
 #            low = np_image.min()
  #           np_image -= low
@@ -121,12 +115,10 @@ def main():
             #np_image = np_image/(high/255) #scale from 0-255, brightest pixel in the image being 255
 
             np_image = np.array(np_image, dtype='uint8') # convert to uint8, otherwise cv will freak out (no support for anything other than uint8? wtf? what kind of shit is this?)
-#            np_image.convertTo(np_image, CV_U8)
-#            hist = cv2.calcHist(np_image, channels = 1, mask = cv2.Mat())
 
             get_head_from_img(np_image)
-#            cv2.imshow("IR", np_image) # show preview
-            cv2.imshow("IR", cv2.resize(np_image,None,fx=2.0, fy=2.0, interpolation = cv2.INTER_CUBIC)) #show preview, but bigger
+            cv2.imshow("IR", np_image) # show preview
+            #cv2.imshow("IR", cv2.resize(np_image,None,fx=2.0, fy=2.0, interpolation = cv2.INTER_CUBIC)) #show preview, but bigger
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

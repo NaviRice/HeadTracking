@@ -11,6 +11,7 @@ def navirice_img_set_write_file(session_name, img_set, last_count):
 
 
 def navirice_image_to_np(img):
+    """Should not be called with ir."""
     tp = img.data_type
     divisor = 1
     if(tp == navirice_image_pb2.ProtoImage.FLOAT):
@@ -29,18 +30,12 @@ def navirice_image_to_np(img):
     return im
 
 
-def navirice_float_to_np(ir_img):
-    tp = ir_img.data_type
-    divisor = 1
+def navirice_ir_to_np(ir_img):
+    """Takes an ir image which has float data, and converts it to a numpy image.
+    Does not do any resizing."""
     tp = np.float32
     ir_img.channels = 1
-    # IR data comes in short. Dividing the data results in values from 0 to 1
-    #divisor = 2**16
-    # Depth data to be converted from 0 to 1
-    #divisor = 4500
     raw_img= np.frombuffer(ir_img.data, dtype=tp, count=ir_img.width*ir_img.height*ir_img.channels)
-    #if(ir_img.data_type == navirice_image_pb2.ProtoImage.FLOAT):
-    raw_img = (raw_img) / divisor
     im = raw_img.reshape((ir_img.height, ir_img.width, ir_img.channels))
     return im
 

@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package navirice;
+
+message ProtoImageCount {
+    uint64 count = 1;
+    uint64 byte_count = 2;
+}
+
+message ProtoAcknowledge {
+    enum ACK {
+        NONE = 0;
+        CONTINUE = 1;
+        STOP = 2;
+    }
+    ACK state = 1;
+    uint64 count = 2;
+}
+
+message ProtoImage {
+    uint32 width = 1;
+    uint32 height = 2;
+    uint32 channels = 3;
+
+    enum DataType {
+        FLOAT = 0;
+        UBYTE = 1;      
+    }
+    DataType data_type = 4;
+    uint32 data_size = 5;
+    bytes data = 6;
+}
+
+message ProtoImageSet {
+    uint64 count = 1;
+    ProtoImage RGB = 2;
+    ProtoImage Depth = 3;
+    ProtoImage IR = 4;
+}
+
+message ProtoCaptureSetting {
+    bool RGB = 1;
+    bool Depth = 2;
+    bool IR = 3;
+}
+
+message ProtoRequest {
+    enum ReqType {
+        IMAGE = 0;
+        CAPTURE_SETTING = 1;
+    }
+    ReqType state = 1;
+    uint64 count = 2;
+}

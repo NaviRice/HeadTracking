@@ -1,4 +1,4 @@
-from navirice_get_image import *
+from navirice_get_image import KinectClient
 from navirice_helpers import navirice_image_to_np
 from navirice_helpers import navirice_ir_to_np
 
@@ -6,10 +6,9 @@ import cv2
 import numpy as np
 import time
 
-from navirice_get_image import *
-
 DEFAULT_HOST = '127.0.0.1'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
+kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
 
 faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 faceCascade1 = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
@@ -103,7 +102,7 @@ def main():
     """Main to test this function. Should not be run for any other reason."""
     last_count = 0
     while(1):
-        img_set, last_count = navirice_get_image(DEFAULT_HOST, DEFAULT_PORT, last_count)
+        img_set, last_count = kinect_client.navirice_get_image()
         if(img_set != None):
             print("IR width: {}\nIR height: {}\nIR channels: {}\n".format(img_set.IR.width, img_set.IR.height, img_set.IR.channels))
             np_image = navirice_ir_to_np(img_set.IR)
@@ -111,8 +110,8 @@ def main():
 #            low = np_image.min()
  #           np_image -= low
 
-            np_image /= (high/255) #scale from 0-255, brightest pixel in the image being 255
-            #np_image = np_image/(high/255) #scale from 0-255, brightest pixel in the image being 255
+            #np_image /= (high/255) #scale from 0-255, brightest pixel in the image being 255
+            np_image = np_image/(high/255) #scale from 0-255, brightest pixel in the image being 255
 
             np_image = np.array(np_image, dtype='uint8') # convert to uint8, otherwise cv will freak out (no support for anything other than uint8? wtf? what kind of shit is this?)
 

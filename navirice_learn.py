@@ -1,8 +1,14 @@
 import numpy as np
 import tensorflow as tf
 import os
-from navirice_get_image import * 
+import navirice_image_pb2
+import cv2
 import random
+import sys
+
+from navirice_generate_data import generate_bitmap_label
+from navirice_helpers import navirice_image_to_np
+from navirice_helpers import map_depth_and_rgb
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -39,28 +45,153 @@ def print_image_stats(path):
     print("IR:\t", img_set.IR.width, "x", img_set.IR.height)
     print("======== END ========")
 
+def load_train_set(data_list, scale_val):
+    real = []
+    expected = []
+    for i in range(len(data_list)):
+        with open(data_list[i], 'rb') as ci:
+            data=ci.read()
+            img_set = navirice_image_pb2.ProtoImageSet()
+            img_set.ParseFromString(data)
+            del data
+            if img_set.RGB is not None and img_set.Depth is not None:
+                rgb_image = navirice_image_to_np(img_set.RGB)
+                depth_image = navirice_image_to_np(img_set.Depth)
+                (rgb_image, depth_image) = map_depth_and_rgb(rgb_image, depth_image)
+                possible_bitmap = generate_bitmap_label(rgb_image, depth_image)
+                if possible_bitmap is not None:
+                    print(depth_image.shape)
+                    real.append(depth_image)
+                    scaled_bitmap = cv2.resize(possible_bitmap,None,fx=scale_val, fy=scale_val, interpolation = cv2.INTER_CUBIC)
+                    expected.append(scaled_bitmap)
+            del img_set
+    return (real, expected)
+
+def load_test_set(data_list):
+    real = []
+    for i in range(len(data_list)):
+        with open(data_list[i], 'rb') as ci:
+            data=ci.read()
+            img_set = navirice_image_pb2.ProtoImageSet()
+            img_set.ParseFromString(data)
+            del data
+            if img_set.Depth is not None:
+                rgb_image = navirice_image_to_np(img_set.RGB)
+                depth_image = navirice_image_to_np(img_set.Depth)
+                (rgb_image, depth_image) = map_depth_and_rgb(rgb_image, depth_image)
+                real.append(depth_image)
+            del img_set
+    return (real)
 
 
-# This means that we need an input layer that is 512x424 pixels
-# with a 5x5x1 layer this makes the second layer 102x84 in size
-# lets define the model:
-def cnn_model_fn(features, labels, mode):
-    input_layer = tf.reshape(features["x"], [-1, 512, 424, 1])
 
-    conv1 = tf.layers.conv2d(
-            inputs=input_layer,
-            filters=102*84,
-            kernel_size=[5, 5],
-            padding="same",
-            activation=tf.nn.relu)
+def generate_batch(count, real_list, expected_list):
+    i = 0
+    real = []
+    expected = []
+    while i < count:
+        ri = random.randint(0, len(real_list)-1)
+        real.append(real_list[ri])
+        expected.append(expected_list[ri])
+        i += 1
+    return (real, expected)
 
-    pool1 = tf.layers.max_pooling2d(inputs = conv1, pool_size=[2,2], strides = 2)
+
+def cnn_model_fn(features):
+    input_layer = tf.reshape(features, [-1, 364, 512, 1])
     
-    print(pool1.get_shape())
+    encoder1 = coder(input_layer, [10,10,1,32], True)
+    pool1 = max_pool_2x2(encoder1)
+    encoder2 = coder(pool1, [7,7,32,64], True)
+    pool2 = max_pool_2x2(encoder2)
+    encoder3 = coder(pool2, [5,5,64,48], True)  
+    encoder4 = coder(encoder3, [5,5,48,32], True)  
+    encoder5 = coder(encoder4, [5,5,32,24], True)  
+    encoder6 = coder(encoder5, [5,5,24,16], True)  
+    encoder7 = coder(encoder6, [5,5,16,12], True)  
+    encoder8 = coder(encoder7, [5,5,12,8], True)  
+    encoder9 = coder(encoder8, [5,5,8,4], True)   
+    decoder1 = coder(encoder9, [5,5,4,1], False)
+    last = tf.sigmoid(decoder1)
+
+    h_final = tf.reshape(last, [-1, 91, 128]) 
+    return h_final
+
+def coder(input_layer, shape, do_relu):
+    W_conv = weight_variable(shape)
+    if do_relu:
+        h_conv = tf.nn.leaky_relu(conv2d(input_layer, W_conv))
+        return h_conv
+    else:
+        h_conv = conv2d(input_layer, W_conv)
+        return h_conv
+   
+
+def conv2d(x, W):
+    """conv2d returns a 2d convolution layer with full stride."""
+    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+
+
+def max_pool_2x2(x):
+    """max_pool_2x2 downsamples a feature map by 2X."""
+    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+def weight_variable(shape):
+    """weight_variable generates a weight variable of a given shape."""
+    initial = tf.truncated_normal(shape, stddev=0.1)
+    return tf.Variable(initial)
+
+def bias_variable(shape):
+    """bias_variable generates a bias variable of a given shape."""
+    initial = tf.constant(0.1, shape=shape)
+    return tf.Variable(initial)
 
 def main():
-    print_image_stats("./DATA")
+    data_list = load_data_file_list("./train_set")
+    (reals, expecteds) = load_train_set(data_list, 1.0/4)
+    print("real's shape: " + str(reals[0].shape))
+    print("expected's shape: " + str(expecteds[0].shape))
+    
+    data_list = load_data_file_list("./test_set")
+    tests = load_test_set(data_list)
+    
+    x = tf.placeholder(tf.float32, [None, 364, 512, 1])
+    y_ = tf.placeholder(tf.float32, [None, 91, 128])
 
+    y_conv = cnn_model_fn(x)
+
+    #cost = tf.square(y_ - y_conv)
+    #cost_mean = tf.reduce_sum(cost)
+    cost = tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv)
+    train_step = tf.train.AdamOptimizer(1e-4).minimize(cost)
+    
+    sess = tf.Session()
+    init = tf.global_variables_initializer()
+    sess.run(init) 
+
+    print("------------------OUT SHAPES-------------------")
+    print(y_.get_shape())
+    print(y_conv.get_shape()) 
+    print("-----------------------------------------------")
+
+    cnt = 0
+    while(True):
+        cnt += 1
+        print("STEP COUNT: ", cnt)
+        for i in range(1000):
+            (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
+            print("-", end='')
+            sys.stdout.flush()
+            train_step.run(session=sess, feed_dict={x: reals_i, y_: expecteds_i})
+        print("|")
+            # see the first image
+       
+        for i in range(len(tests)):
+            outs = sess.run(y_conv, feed_dict={x: [tests[i]]})
+            cv2.imshow("input", tests[i])
+            cv2.imshow("output", outs[0])
+            if cv2.waitKey(33) & 0xFF == ord('q'):
+                break
 
 if __name__ == "__main__":
     main()

@@ -8,6 +8,7 @@ import sys
 
 from navirice_generate_data import generate_bitmap_label
 from navirice_helpers import navirice_image_to_np
+from navirice_helpers import navirice_ir_to_np
 from navirice_helpers import map_depth_and_rgb
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -54,14 +55,13 @@ def load_train_set(data_list, scale_val):
             img_set = navirice_image_pb2.ProtoImageSet()
             img_set.ParseFromString(data)
             del data
-            if img_set.RGB is not None and img_set.Depth is not None:
-                rgb_image = navirice_image_to_np(img_set.RGB)
+            if  img_set.Depth is not None and img_set.IR is not None:
+                ir_image = navirice_ir_to_np(img_set.IR)
                 depth_image = navirice_image_to_np(img_set.Depth)
-                (rgb_image, depth_image) = map_depth_and_rgb(rgb_image, depth_image)
-                possible_bitmap = generate_bitmap_label(rgb_image, depth_image)
+                possible_bitmap = generate_bitmap_label(ir_image, depth_image)
                 if possible_bitmap is not None:
-                    print(depth_image.shape)
-                    real.append(depth_image)
+                    print(ir_image.shape)
+                    real.append(ir_image)
                     scaled_bitmap = cv2.resize(possible_bitmap,None,fx=scale_val, fy=scale_val, interpolation = cv2.INTER_CUBIC)
                     expected.append(scaled_bitmap)
             del img_set
@@ -75,11 +75,9 @@ def load_test_set(data_list):
             img_set = navirice_image_pb2.ProtoImageSet()
             img_set.ParseFromString(data)
             del data
-            if img_set.Depth is not None:
-                rgb_image = navirice_image_to_np(img_set.RGB)
-                depth_image = navirice_image_to_np(img_set.Depth)
-                (rgb_image, depth_image) = map_depth_and_rgb(rgb_image, depth_image)
-                real.append(depth_image)
+            if img_set.IR is not None:
+                ir_image = navirice_image_to_np(img_set.IR)
+                real.append(ir_image)
             del img_set
     return (real)
 
@@ -99,7 +97,7 @@ def generate_batch(count, real_list, expected_list):
 
 def cnn_model_fn(features):
     input_layer = tf.reshape(features, [-1, 364, 512, 1])
-    
+
     encoder1 = coder(input_layer, [10,10,1,32], True)
     pool1 = max_pool_2x2(encoder1)
     encoder2 = coder(pool1, [7,7,32,64], True)
@@ -175,23 +173,41 @@ def main():
     print("-----------------------------------------------")
 
     cnt = 0
+    # while(True):
+    #     cnt += 1
+    #     print("STEP COUNT: ", cnt)
+    #     for i in range(1000):
+    #         (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
+    #         print("-", end='')
+    #         sys.stdout.flush()
+    #         train_step.run(session=sess, feed_dict={x: reals_i, y_: expecteds_i})
+    #     print("|")
+    #         # see the first image
+       
+    #     for i in range(len(tests)):
+    #         outs = sess.run(y_conv, feed_dict={x: [tests[i]]})
+    #         cv2.imshow("input", tests[i])
+    #         cv2.imshow("output", outs[0])
+    #         if cv2.waitKey(33) & 0xFF == ord('q'):
+    #             break
+
     while(True):
         cnt += 1
         print("STEP COUNT: ", cnt)
         for i in range(1000):
             (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
-            print("-", end='')
+#            print("-", end='')
             sys.stdout.flush()
             train_step.run(session=sess, feed_dict={x: reals_i, y_: expecteds_i})
+
+            for i in range(len(tests)):
+                outs = sess.run(y_conv, feed_dict={x: [tests[i]]})
+                cv2.imshow("input", tests[i])
+                cv2.imshow("output", outs[0])
+                if cv2.waitKey(33) & 0xFF == ord('q'):
+                    break
         print("|")
             # see the first image
-       
-        for i in range(len(tests)):
-            outs = sess.run(y_conv, feed_dict={x: [tests[i]]})
-            cv2.imshow("input", tests[i])
-            cv2.imshow("output", outs[0])
-            if cv2.waitKey(33) & 0xFF == ord('q'):
-                break
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,4 @@
-from navirice_get_image import navirice_get_image
+from navirice_get_image import KinectClient
 from navirice_head_detect import get_head_from_img
 from navirice_helpers import navirice_image_to_np
 from navirice_helpers import map_depth_and_rgb
@@ -8,50 +8,54 @@ import numpy as np
 
 DEFAULT_HOST = '127.0.0.1'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
+#kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
 
 
 def main():
     """Main to test this function. Should not be run for any other reason."""
-    last_count = 0
-    np.set_printoptions(threshold=np.inf)
+    # last_count = 0
+    # np.set_printoptions(threshold=np.inf)
 
-    while(1):
-        img_set, last_count = navirice_get_image(DEFAULT_HOST, DEFAULT_PORT, last_count)
+    # while(1):
+    #     img_set, last_count = kinect_client.navirice_get_image()
 
-        if img_set is None:
-            continue
+    #     if img_set is None:
+    #         continue
 
-        rgb_image = navirice_image_to_np(img_set.RGB)
-        depth_image = navirice_image_to_np(img_set.Depth)
-        (rgb_image, depth_image) = map_depth_and_rgb(rgb_image, depth_image)
+    #     rgb_image = navirice_image_to_np(img_set.RGB)
+    #     depth_image = navirice_image_to_np(img_set.Depth)
+    #     (rgb_image, depth_image) = map_depth_and_rgb(rgb_image, depth_image)
 
-        possible_bitmap = generate_bitmap_label(rgb_image, depth_image)
+    #     possible_bitmap = generate_bitmap_label(rgb_image, depth_image)
 
-        if possible_bitmap is None:
-            print("No head detected")
-            cv2.imshow("depth", depth_image)
-            continue
+    #     if possible_bitmap is None:
+    #         print("No head detected")
+    #         cv2.imshow("depth", depth_image)
+    #         continue
 
-        binary_image = generate_bitmap_label(rgb_image, depth_image)
-        cv2.imshow("depth", depth_image)
-        cv2.imshow("binary", binary_image)
+    #     binary_image = generate_bitmap_label(rgb_image, depth_image)
+    #     cv2.imshow("depth", depth_image)
+    #     cv2.imshow("binary", binary_image)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+    #     if cv2.waitKey(1) & 0xFF == ord('q'):
+    #         break
+    pass
 
 
-def generate_bitmap_label(rgb_image, depth_image):
+def generate_bitmap_label(rgb_or_ir_image, depth_image):
     """Takes in 2 numpy arrays representing the raw rgb and depth data.
 
-    Assumes that the rgb and depth data are the same ratio.
+    Uses the first image to do head detection. If rgb image is given,
+    assumes it's the same ratio as depth.
 
-    Might have a sideeffect of editing depth data.
+    Then uses depth image to generate confidence image. Might have a
+    sideeffect of editing depth data.
 
     returns:
         A bitmap if head is detected, where the head is highlighted with white.
         None if a head is not detected."""
 
-    possible_head_data = get_head_from_img(rgb_image)
+    possible_head_data = get_head_from_img(rgb_or_ir_image)
     if possible_head_data is None:
         return None
     (x, y, radius) = possible_head_data # Get the head data as ranges from 0-1
@@ -65,20 +69,14 @@ def generate_bitmap_label(rgb_image, depth_image):
     # Set everything outside threshold to be black, and within to be white
     black = 0
     depth_to_meters = 4.5
-    lower_threshold = center_value - head_distance
-    upper_threshold = center_value + head_distance
-    # Set everything outside threshold to be black, and within to be white
-    black = 0
-    depth_to_meters = 4.5
     sub_array_with_head = depth_image[head_location_dimensions] * depth_to_meters
     threshold_indecies = np.logical_or(sub_array_with_head < lower_threshold, upper_threshold < sub_array_with_head)
     sub_array_with_head[threshold_indecies] = black
     sub_array_with_head *= 1.0 
-    sub_array_with_head[sub_array_with_head > 1.0] = 1.0 
+    sub_array_with_head[sub_array_with_head > 1.0] = 1.0
     bitmap_image = np.zeros(depth_image.shape) # initialize compeletly black label
     bitmap_image[head_location_dimensions] = sub_array_with_head/depth_to_meters
     return bitmap_image
-
 
 
 def get_scaled(x, y, radius, image):

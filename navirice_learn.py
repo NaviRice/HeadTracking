@@ -76,7 +76,8 @@ def load_test_set(data_list):
             img_set.ParseFromString(data)
             del data
             if img_set.IR is not None:
-                ir_image = navirice_image_to_np(img_set.IR)
+                #ir_image = navirice_image_to_np(img_set.IR)
+                ir_image = navirice_ir_to_np(img_set.IR)
                 real.append(ir_image)
             del img_set
     return (real)
@@ -96,9 +97,12 @@ def generate_batch(count, real_list, expected_list):
 
 
 def cnn_model_fn(features):
-    input_layer = tf.reshape(features, [-1, 364, 512, 1])
-
+    # unkown amount, higrt and width, channel
+    # input_layer = tf.reshape(features, [-1, 364, 512, 1])
+    input_layer = tf.reshape(features, [-1, 424, 512, 1])
+    #conv size, conv size, features, 32 outs 
     encoder1 = coder(input_layer, [10,10,1,32], True)
+    #2 featues instead of one
     pool1 = max_pool_2x2(encoder1)
     encoder2 = coder(pool1, [7,7,32,64], True)
     pool2 = max_pool_2x2(encoder2)
@@ -112,7 +116,9 @@ def cnn_model_fn(features):
     decoder1 = coder(encoder9, [5,5,4,1], False)
     last = tf.sigmoid(decoder1)
 
-    h_final = tf.reshape(last, [-1, 91, 128]) 
+    # h_final = tf.reshape(last, [-1, 91, 128]) 
+    # h_final = tf.reshape(last, [-1, 106, 128]) 
+    h_final = tf.reshape(last, [-1, 106, 128]) 
     return h_final
 
 def coder(input_layer, shape, do_relu):
@@ -153,8 +159,12 @@ def main():
     data_list = load_data_file_list("./test_set")
     tests = load_test_set(data_list)
     
-    x = tf.placeholder(tf.float32, [None, 364, 512, 1])
-    y_ = tf.placeholder(tf.float32, [None, 91, 128])
+    #two channels
+    # x = tf.placeholder(tf.float32, [None, 364, 512, 1])
+    x = tf.placeholder(tf.float32, [None, 424, 512, 1])
+    # y_ = tf.placeholder(tf.float32, [None, 91, 128])
+    y_ = tf.placeholder(tf.float32, [None, 106, 128])
+    # y_ = tf.placeholder(tf.float32, [None, 424, 512])
 
     y_conv = cnn_model_fn(x)
 
@@ -194,20 +204,23 @@ def main():
     while(True):
         cnt += 1
         print("STEP COUNT: ", cnt)
-        for i in range(1000):
+        for i in range(1):
             (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
-#            print("-", end='')
+            print("-")
             sys.stdout.flush()
             train_step.run(session=sess, feed_dict={x: reals_i, y_: expecteds_i})
 
-            for i in range(len(tests)):
-                outs = sess.run(y_conv, feed_dict={x: [tests[i]]})
-                cv2.imshow("input", tests[i])
-                cv2.imshow("output", outs[0])
-                if cv2.waitKey(33) & 0xFF == ord('q'):
-                    break
         print("|")
-            # see the first image
+        # see the first image
+
+        for i in range(len(tests)):
+            print("y_conv: {}".format(y_conv.shape))
+            print("tests i: {}".format(tests[i].shape))
+            outs = sess.run(y_conv, feed_dict={x: [tests[i]]})
+            cv2.imshow("input", tests[i])
+            cv2.imshow("output", outs[0])
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
 if __name__ == "__main__":
     main()

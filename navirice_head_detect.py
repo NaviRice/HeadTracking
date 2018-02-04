@@ -8,7 +8,6 @@ import time
 
 DEFAULT_HOST = '127.0.0.1'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
-kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
 
 faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 faceCascade1 = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
@@ -97,24 +96,38 @@ def _get_head_from_boxes(image, boxes):
 
     return (scaled_x, scaled_y, scaled_radius)
 
-
 def main():
     """Main to test this function. Should not be run for any other reason."""
+    #kinect_head_detect_test()
+    send_head_data_to_rendering_server()
+
+
+def send_head_data_to_rendering_server():
     last_count = 0
     while(1):
         img_set, last_count = kinect_client.navirice_get_image()
         if(img_set != None):
-            print("IR width: {}\nIR height: {}\nIR channels: {}\n".format(img_set.IR.width, img_set.IR.height, img_set.IR.channels))
+            print("IR width: {}\nIR height: {}\nIR channels: {}\n".format(
+                img_set.IR.width, img_set.IR.height, img_set.IR.channels))
             np_image = navirice_ir_to_np(img_set.IR)
-            high = np_image.max()
-#            low = np_image.min()
- #           np_image -= low
+            get_head_from_img(np_image)
+            cv2.imshow("IR", np_image) # show preview
+            #cv2.imshow("IR", cv2.resize(np_image,None,fx=2.0, fy=2.0, interpolation = cv2.INTER_CUBIC)) #show preview, but bigger
 
-            #np_image /= (high/255) #scale from 0-255, brightest pixel in the image being 255
-            np_image = np_image/(high/255) #scale from 0-255, brightest pixel in the image being 255
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    (x, y, radius) = get_head_from_img(np_image)
 
-            np_image = np.array(np_image, dtype='uint8') # convert to uint8, otherwise cv will freak out (no support for anything other than uint8? wtf? what kind of shit is this?)
 
+def kinect_head_detect_test():
+    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    last_count = 0
+    while(1):
+        img_set, last_count = kinect_client.navirice_get_image()
+        if(img_set != None):
+            print("IR width: {}\nIR height: {}\nIR channels: {}\n".format(
+                img_set.IR.width, img_set.IR.height, img_set.IR.channels))
+            np_image = navirice_ir_to_np(img_set.IR)
             get_head_from_img(np_image)
             cv2.imshow("IR", np_image) # show preview
             #cv2.imshow("IR", cv2.resize(np_image,None,fx=2.0, fy=2.0, interpolation = cv2.INTER_CUBIC)) #show preview, but bigger

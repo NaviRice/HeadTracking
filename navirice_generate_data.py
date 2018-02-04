@@ -58,28 +58,37 @@ def generate_bitmap_label(rgb_or_ir_image, depth_image):
     possible_head_data = get_head_from_img(rgb_or_ir_image)
     if possible_head_data is None:
         return None
+
     (x, y, radius) = possible_head_data # Get the head data as ranges from 0-1
     (x, y, radius) = get_scaled(x, y, radius, depth_image) # Scale data to depth image
-    head_location_dimensions = _get_head_location_dimensions(depth_image, x, y, radius)
-    center_value = _get_center_of_head(head_location_dimensions, depth_image)
-
-    head_distance = 1.0 # Create threshold of half a meter
-    lower_threshold = center_value - head_distance
-    upper_threshold = center_value + head_distance
-    # Set everything outside threshold to be black, and within to be white
-    black = 0
-    depth_to_meters = 4.5
-    sub_array_with_head = depth_image[head_location_dimensions] * depth_to_meters
-    threshold_indecies = np.logical_or(sub_array_with_head < lower_threshold, upper_threshold < sub_array_with_head)
-    sub_array_with_head[threshold_indecies] = black
-    sub_array_with_head *= 1.0 
-    sub_array_with_head[sub_array_with_head > 1.0] = 1.0
     bitmap_image = np.zeros(depth_image.shape) # initialize compeletly black label
-    bitmap_image[head_location_dimensions] = sub_array_with_head/depth_to_meters
+    head_location_dimensions = _get_head_location_dimensions(depth_image, x, y, radius)
+    bitmap_image[head_location_dimensions] = 1.0
     return bitmap_image
+
+    #(x, y, radius) = possible_head_data # Get the head data as ranges from 0-1
+    #(x, y, radius) = get_scaled(x, y, radius, depth_image) # Scale data to depth image
+    #head_location_dimensions = _get_head_location_dimensions(depth_image, x, y, radius)
+    #center_value = _get_center_of_head(head_location_dimensions, depth_image)
+
+    #head_distance = 1.0 # Create threshold of half a meter
+    #lower_threshold = center_value - head_distance
+    #upper_threshold = center_value + head_distance
+    ## Set everything outside threshold to be black, and within to be white
+    #black = 0
+    #depth_to_meters = 4.5
+    #sub_array_with_head = depth_image[head_location_dimensions] * depth_to_meters
+    #threshold_indecies = np.logical_or(sub_array_with_head < lower_threshold, upper_threshold < sub_array_with_head)
+    #sub_array_with_head[threshold_indecies] = black
+    #sub_array_with_head *= 1.0 
+    #sub_array_with_head[sub_array_with_head > 1.0] = 1.0
+    #bitmap_image = np.zeros(depth_image.shape) # initialize compeletly black label
+    #bitmap_image[head_location_dimensions] = sub_array_with_head/depth_to_meters
+    #return bitmap_image
 
 
 def get_scaled(x, y, radius, image):
+    """Scales x y and raius whose values are from 0 to 1 to int values."""
     scaled_x = int(x*image.shape[1])
     scaled_y = int(y*image.shape[0])
     scaled_radius = int(radius*max(image.shape[1], image.shape[0]))

@@ -57,13 +57,27 @@ def load_train_set(data_list, scale_val):
             del data
             if  img_set.Depth is not None and img_set.IR is not None:
                 ir_image = navirice_ir_to_np(img_set.IR)
+
                 depth_image = navirice_image_to_np(img_set.Depth)
                 possible_bitmap = generate_bitmap_label(ir_image, depth_image)
                 if possible_bitmap is not None:
-                    print(ir_image.shape)
-                    real.append(ir_image)
-                    scaled_bitmap = cv2.resize(possible_bitmap,None,fx=scale_val, fy=scale_val, interpolation = cv2.INTER_CUBIC)
+
+                    # Set labeled output
+                    scaled_bitmap = cv2.resize(
+                        possible_bitmap,None,fx=scale_val, fy=scale_val,
+                        interpolation = cv2.INTER_CUBIC)
                     expected.append(scaled_bitmap)
+
+                    # set input as both ir and depth into one image with 2 channels
+                    # Both are ranges from 0 to 1
+                    ir_image_to_1 = navirice_ir_to_np(img_set.IR, scale=1.0, forCV=False)
+                    combined_image = np.concatenate((ir_image_to_1, depth_image), axis=2)
+                    real.append(combined_image)
+
+                    cv2.imshow("real-scaled-ir", ir_image_to_1)
+                    cv2.imshow("expected", scaled_bitmap)
+                    cv2.waitKey(100)
+
             del img_set
     return (real, expected)
 
@@ -76,12 +90,13 @@ def load_test_set(data_list):
             img_set.ParseFromString(data)
             del data
             if img_set.IR is not None:
-                #ir_image = navirice_image_to_np(img_set.IR)
-                ir_image = navirice_ir_to_np(img_set.IR)
-                real.append(ir_image)
+                depth_image = navirice_image_to_np(img_set.Depth)
+                ir_image = navirice_ir_to_np(img_set.IR, 1.0, forCV=False)
+                combined_image = np.concatenate((ir_image, depth_image), axis=2)
+                # real.append(depth_image)
+                real.append(combined_image)
             del img_set
     return (real)
-
 
 
 def generate_batch(count, real_list, expected_list):
@@ -99,9 +114,9 @@ def generate_batch(count, real_list, expected_list):
 def cnn_model_fn(features):
     # unkown amount, higrt and width, channel
     # input_layer = tf.reshape(features, [-1, 364, 512, 1])
-    input_layer = tf.reshape(features, [-1, 424, 512, 1])
+    input_layer = tf.reshape(features, [-1, 424, 512, 2])
     #conv size, conv size, features, 32 outs 
-    encoder1 = coder(input_layer, [10,10,1,32], True)
+    encoder1 = coder(input_layer, [10,10,2,32], True)
     #2 featues instead of one
     pool1 = max_pool_2x2(encoder1)
     encoder2 = coder(pool1, [7,7,32,64], True)
@@ -130,6 +145,10 @@ def coder(input_layer, shape, do_relu):
         h_conv = conv2d(input_layer, W_conv)
         return h_conv
    
+
+#coder fork
+#2 input layers, shape, dorelu
+#tf layer add two layers, copies
 
 def conv2d(x, W):
     """conv2d returns a 2d convolution layer with full stride."""
@@ -161,7 +180,7 @@ def main():
     
     #two channels
     # x = tf.placeholder(tf.float32, [None, 364, 512, 1])
-    x = tf.placeholder(tf.float32, [None, 424, 512, 1])
+    x = tf.placeholder(tf.float32, [None, 424, 512, 2])
     # y_ = tf.placeholder(tf.float32, [None, 91, 128])
     y_ = tf.placeholder(tf.float32, [None, 106, 128])
     # y_ = tf.placeholder(tf.float32, [None, 424, 512])
@@ -217,7 +236,10 @@ def main():
             print("y_conv: {}".format(y_conv.shape))
             print("tests i: {}".format(tests[i].shape))
             outs = sess.run(y_conv, feed_dict={x: [tests[i]]})
-            cv2.imshow("input", tests[i])
+            ir_image, depth_image = tests[i][:,:,0], tests[i][:,:,1]
+            # cv2.imshow("input", tests[i])
+            cv2.imshow("input-depth", depth_image)
+            cv2.imshow("input-ir", ir_image)
             cv2.imshow("output", outs[0])
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break

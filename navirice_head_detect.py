@@ -2,6 +2,7 @@ from navirice_get_image import KinectClient
 from navirice_helpers import navirice_image_to_np
 from navirice_helpers import navirice_ir_to_np
 
+from threading import Thread, Lock
 import cv2
 import numpy as np
 import time
@@ -9,14 +10,86 @@ import time
 DEFAULT_HOST = '127.0.0.1'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
 
-faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-faceCascade1 = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
-faceCascade2 = cv2.CascadeClassifier('haarcascade_frontalface_alt2.xml')
-sideCascade = cv2.CascadeClassifier('haarcascade_profileface.xml')
-cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
+detected_heads_queue = []
+stack = []
+
+queue_mutex = Lock()
+stack_mutex = Lock()
+
+class QueueHead():
+
+    def __init__(self, count, head):
+        """Head is (x, y, radius)."""
+        self.count = count
+        self.head = head
 
 
-def get_head_from_img(np_image):
+def smart_threaded_haar_test():
+    global detected_heads_queue
+
+    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    last_count = 0
+    for i in range(2):
+        thread = Thread(target=thread_worker)
+        thread.daemon = True
+        thread.start()
+
+    while(1):
+        img_set, last_count = kinect_client.navirice_get_image()
+        if(img_set != None):
+            np_image = navirice_ir_to_np(img_set.IR)
+            stack_mutex.acquire()
+            print("ADDING IMAGE TO STACK")
+            stack.append(np_image)
+            stack_mutex.release()
+
+            queue_mutex.acquire()
+            for item in detected_heads_queue:
+                head = item.head
+                if item.count > 0:
+                    image_height= np_image.shape[0]
+                    image_width = np_image.shape[1]
+                    x, y, radius = head[0], head[1], head[2]
+                    cv2.circle(np_image, (int(x*image_width), int(y*image_height)),
+                            int(radius*image_width), (255, 255, 255), thickness=5,
+                            lineType=8, shift=0)
+                    print("OHMG: {}, {}, {}".format(x, y, radius))
+                    item.count -= 1
+            for item in detected_heads_queue:
+                if item.count <= 0:
+                    detected_heads_queue.remove(item)
+            queue_mutex.release()
+            cv2.imshow("Show", np_image)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+def thread_worker():
+    print("THREAD WORKKERKERKTRJ!!!")
+    faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    faceCascade1 = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
+    faceCascade2 = cv2.CascadeClassifier('haarcascade_frontalface_alt2.xml')
+    sideCascade = cv2.CascadeClassifier('haarcascade_profileface.xml')
+    cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
+    while True:
+        img = None
+        stack_mutex.acquire()
+        if len(stack) > 0:
+            img = stack.pop()
+            print("REMOVING IMAGE FROM STACK")
+        stack_mutex.release()
+        if img is not None:
+            print("PROCESSING IMAGE")
+            # potential_location is (x, y, radius)
+            potential_location = get_head_from_img(img, cascades)
+            if potential_location is not None:
+                queue_mutex.acquire()
+                queue_head = QueueHead(3, potential_location)
+                detected_heads_queue.append(queue_head)
+                queue_mutex.release()
+    print("SO DED!!!")
+
+
+def get_head_from_img(np_image, cascades):
     """Detects head from image and returns location of it.
 
     returns:
@@ -27,7 +100,7 @@ def get_head_from_img(np_image):
     #i dont bother scaling and graying the image because... its 500 pixels wide and already grayscale
 #    image = _preprocess_image(np_image)
     image = np_image
-    potential_boxes = _run_cascades(image)
+    potential_boxes = _run_cascades(image, cascades)
 
     if(len(potential_boxes) == 0):
         # cv2.imshow("ir", image)
@@ -50,12 +123,11 @@ def _preprocess_image(image):
     gray_img = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
     return gray_img
 
-def _run_cascades(image):
+def _run_cascades(image, cascades):
     """Returns cv2.rectangle boxes of where it thinks heads are.
 
     For now it breaks after it finds the first cascade.
     """
-    global cascades
     boxes = []
     for cascade in cascades:
         boxes = cascade.detectMultiScale(
@@ -91,18 +163,20 @@ def _get_head_from_boxes(image, boxes):
     scaled_radius = max(box_width/image_width, box_height/image_height)/2
 
     # Debug draw circle/rectangle on face
-    cv2.circle(image, (int(x), int(y)), int(radius), (255, 255, 255), thickness=10, lineType=8, shift=0)
+    # cv2.circle(image, (int(x), int(y)), int(radius), (255, 255, 255), thickness=10, lineType=8, shift=0)
 #    cv2.rectangle(image, (x, y), (x+box_width, int(y+box_height)), (255, 255, 255), 2)
 
     return (scaled_x, scaled_y, scaled_radius)
 
 def main():
     """Main to test this function. Should not be run for any other reason."""
+    smart_threaded_haar_test()
     #kinect_head_detect_test()
-    send_head_data_to_rendering_server()
+    #send_head_data_to_rendering_server()
 
 
-def send_head_data_to_rendering_server():
+def kinect_head_detect_test():
+    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
     last_count = 0
     while(1):
         img_set, last_count = kinect_client.navirice_get_image()
@@ -116,11 +190,8 @@ def send_head_data_to_rendering_server():
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    (x, y, radius) = get_head_from_img(np_image)
 
-
-def kinect_head_detect_test():
-    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+def send_head_data_to_rendering_server():
     last_count = 0
     while(1):
         img_set, last_count = kinect_client.navirice_get_image()

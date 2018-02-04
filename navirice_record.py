@@ -1,5 +1,7 @@
-from navirice_get_image import *
+from navirice_get_image import KinectClient
 from navirice_helpers import navirice_img_set_write_file
+from navirice_helpers import navirice_image_to_np
+from navirice_helpers import navirice_ir_to_np
 import navirice_image_pb2
 
 from tkinter import *
@@ -11,13 +13,21 @@ from threading import Thread
 DEFAULT_HOST = '127.0.0.1'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
 
+#todo
+#  create a button which only records images if it detects a head
+#  create a button which does not record images if it detects a head
+#  Modify the protobuf image so that it also includes the information
+#    for the label data. And record label data when recording information.
+
 
 class Window(Frame):
 
     def __init__(self, master=None):
         Frame.__init__(self, master)
+        self.kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
         self.master = master
         self.init_window()
+
 
     def init_window(self):
         self.should_pull = True
@@ -27,14 +37,20 @@ class Window(Frame):
         self.last_count = 0
         self.master.title("NAVIRICE_RECORDER")
 
-        recordButton = Button(self, text="RECORD", command=self.record)
+        recordButton = Button(self, text="RECORD/Pause", command=self.record)
         recordButton.place(x=5, y=0)
 
+        recordButtonOnlyHead = Button(self, text="RECORDOnlyHead", command=self.recordHead)
+        recordButtonOnlyHead.place(x=5, y=30)
+        
+        recordButtonNoHead = Button(self, text="RECORDNoHead", command=self.recordNoHead)
+        recordButtonNoHead.place(x=5, y=60)
+
         self.session_text = Text(self, height=1, width=20)
-        self.session_text.place(x=5, y=30)
+        self.session_text.place(x=5, y=90)
         self.session_text.insert(END, self.session_name)
 
-        self.canvas = Canvas(self, height=30, width=30)
+        self.canvas = Canvas(self, height=60, width=120)
         self.print_states()
         self.pack(fill=BOTH, expand=1)
 
@@ -57,6 +73,27 @@ class Window(Frame):
         if(len(name)):
             self.session_name = name
 
+    def recordHead(self):
+        """Records if head is detected."""
+        if get_head_from_img(np_image) is None:
+            return
+        self.should_record = True
+        self.print_states()
+        name = self.session_text.get("1.0",END)
+        if(len(name)):
+            self.session_name = name
+
+
+    def recordNoHead(self):
+        """Records if no head is detected."""
+        if get_head_from_img(np_image) is not None:
+            return
+        self.should_record = True
+        self.print_states()
+        name = self.session_text.get("1.0",END)
+        if(len(name)):
+            self.session_name = name
+
     def kill(self):
         self.should_run = False
 
@@ -64,14 +101,16 @@ class Window(Frame):
         while(self.should_run):
             img_set = None
             if(self.should_pull):
-                img_set, self.last_count = navirice_get_image(DEFAULT_HOST, DEFAULT_PORT, self.last_count)
+                img_set, last_count = self.kinect_client.navirice_get_image()
             if(img_set != None):
                 if self.should_record:
-                    #processThread =Thread(target=navirice_img_set_write_file, args=[self.session_name, img_set, self.last_count])
+                    #processThread = Thread(target=navirice_img_set_write_file,
+                    #args=[self.session_name, img_set, self.last_count])
                     #processThread.start()
                     navirice_img_set_write_file(self.session_name, img_set, self.last_count)
-                cv2.imshow("RGB", naviriceImageToNp(img_set.RGB))
-                cv2.imshow("DEPTH", naviriceImageToNp(img_set.Depth))
+                #cv2.imshow("RGB", navirice_image_to_np(img_set.RGB))
+                cv2.imshow("DEPTH", navirice_image_to_np(img_set.Depth))
+                cv2.imshow("IR", navirice_ir_to_np(img_set.IR))
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     print("q pressed in cv window")
                 del img_set

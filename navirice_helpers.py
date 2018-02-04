@@ -1,8 +1,12 @@
 import navirice_image_pb2
 import numpy as np
 
-def navirice_img_set_write_file(session_name, img_set, last_count):
-    name = 'DATA/' + session_name + "_" + str(last_count) + ".img_set"
+def navirice_img_set_write_file(session_name, img_set, last_count, label=None):
+    """Expects label to be 1 if there is a head in the image, and 0 if there isn't."""
+    folder = ""
+    if label is not None:
+        folder = str(label) + "/"
+    name = 'DATA/' + folder + session_name + "_" + str(last_count) + ".img_set"
     name = name.replace('\n', '')
     print("Recording to: ", name)
     f = open(name, 'wb')
@@ -47,9 +51,9 @@ def navirice_ir_to_np(ir_img, scale=255.0, forCV=True):
     np_image = np_image*(scale/high)
 
     # Debugging, please remove
-    unique, counts = np.unique(np_image, return_counts=True)
-    print(np.asarray((unique, counts)).T)
-    print("yolo{}".format(scale))
+    #unique, counts = np.unique(np_image, return_counts=True)
+    #print(np.asarray((unique, counts)).T)
+    #print("yolo{}".format(scale))
 
     # Important that this happens after image is scaled.
     if forCV:

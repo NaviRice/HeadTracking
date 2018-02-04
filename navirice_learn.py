@@ -113,11 +113,8 @@ def generate_batch(count, real_list, expected_list):
 
 def cnn_model_fn(features):
     # unkown amount, higrt and width, channel
-    # input_layer = tf.reshape(features, [-1, 364, 512, 1])
     input_layer = tf.reshape(features, [-1, 424, 512, 2])
-    #conv size, conv size, features, 32 outs 
     encoder1 = coder(input_layer, [10,10,2,32], True)
-    #2 featues instead of one
     pool1 = max_pool_2x2(encoder1)
     encoder2 = coder(pool1, [7,7,32,64], True)
     pool2 = max_pool_2x2(encoder2)
@@ -131,10 +128,9 @@ def cnn_model_fn(features):
     decoder1 = coder(encoder9, [5,5,4,1], False)
     last = tf.sigmoid(decoder1)
 
-    # h_final = tf.reshape(last, [-1, 91, 128]) 
-    # h_final = tf.reshape(last, [-1, 106, 128]) 
     h_final = tf.reshape(last, [-1, 106, 128]) 
     return h_final
+
 
 def coder(input_layer, shape, do_relu):
     W_conv = weight_variable(shape)
@@ -144,11 +140,7 @@ def coder(input_layer, shape, do_relu):
     else:
         h_conv = conv2d(input_layer, W_conv)
         return h_conv
-   
 
-#coder fork
-#2 input layers, shape, dorelu
-#tf layer add two layers, copies
 
 def conv2d(x, W):
     """conv2d returns a 2d convolution layer with full stride."""

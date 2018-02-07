@@ -1,4 +1,5 @@
 from navirice_get_image import KinectClient
+from position_server import PositionServer
 from navirice_helpers import navirice_image_to_np
 from navirice_helpers import navirice_ir_to_np
 
@@ -14,6 +15,61 @@ faceCascade1 = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
 faceCascade2 = cv2.CascadeClassifier('haarcascade_frontalface_alt2.xml')
 sideCascade = cv2.CascadeClassifier('haarcascade_profileface.xml')
 cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
+
+
+def send_head_data_to_rendering_server():
+    position_server = PositionServer(40007)
+    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    last_count = 0
+    while(1):
+        img_set, last_count = kinect_client.navirice_get_image()
+        if(img_set is None):
+            return
+
+        np_ir_image = navirice_ir_to_np(img_set.IR)
+        np_depth_image = navirice_image_to_np(img_set.Depth, scale=False)
+
+        # Debug Images
+        cv2.circle(np_ir_image, (0, 0), 5, (255, 255, 255),
+                thickness=10, lineType=8, shift=0)
+        cv2.imshow("IR", np_ir_image) # show preview
+        cv2.imshow("Depth", np_depth_image) # show preview
+
+        potential = get_head_from_img(np_ir_image, should_scale=False)
+        if potential is None:
+            continue
+        head_location = potential
+
+        (render_x, render_y, render_depth) = _calculate_render_info(
+                np_depth_image, head_location)
+
+        print("Render DATA: x:{}, y:{}, depth:{}".format(
+            x_render, y_render, depth_render))
+        position_server.set_values(render_x, render_y, render_depth)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+
+def _calculate_render_info(depth_image, head_location):
+    """Returns -1 to 1 for x and y, and meters to head location for depth."""
+    image_height= depth_image.shape[0]
+    image_width = depth_image.shape[1]
+    (x, y, radius) = head_location
+
+    x_render = (x/image_width * 2) - 1
+    y_render  = (y/image_height * 2) - 1
+
+    # I think y and x should be flipped, according to kinect readings
+    raw_depth_at_head = float(depth_image[int(y), int(x)])
+    # Rendering server wants depth in meters
+    # First time I get to write magic numbers yay!
+    # Conversion taken from http://shiffman.net/p5/kinect/
+    depth_render = 1.0 / (raw_depth_at_head * -0.0030711016 + 3.3309495161);
+
+
+    print("raw_data DATA: x:{}, y:{} raw:{} scaled:{}".format(
+        x, y, raw_depth_at_head, depth_render))
+    return (x_render, y_render, depth_render)
 
 
 def get_head_from_img(np_image, should_scale=True):
@@ -90,63 +146,6 @@ def _get_head_from_boxes(image, boxes, should_scale=True):
     return (x, y, radius)
 
 
-def main():
-    """Main to test this function. Should not be run for any other reason."""
-    #kinect_head_detect_test()
-    send_head_data_to_rendering_server()
-
-
-def send_head_data_to_rendering_server():
-    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
-    last_count = 0
-    while(1):
-        img_set, last_count = kinect_client.navirice_get_image()
-        if(img_set is None):
-            return
-
-        np_ir_image = navirice_ir_to_np(img_set.IR)
-        np_depth_image = navirice_image_to_np(img_set.Depth, scale=False)
-
-        # Debug Images
-        cv2.circle(np_ir_image, (0, 0), 5, (255, 255, 255),
-                thickness=10, lineType=8, shift=0)
-        cv2.imshow("IR", np_ir_image) # show preview
-        cv2.imshow("Depth", np_depth_image) # show preview
-
-        potential = get_head_from_img(np_ir_image, should_scale=False)
-        if potential is None:
-            continue
-        head_location = potential
-
-        (render_x, render_y, render_depth) = _calculate_render_info(
-                np_depth_image, head_location)
-
-        print("DEPTH DATA: x:{}, y:{} raw:{} scaled:{}".format(
-            x, y, raw_depth_at_head, depth_render))
-        print("KINECT DATA: x:{}, y:{}, depth:{}".format(
-            x_render, y_render, depth_render))
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-
-def _calculate_render_info(depth_image, head_location):
-    """Returns -1 to 1 for x and y, and meters to head location for depth."""
-    image_height= depth_image.shape[0]
-    image_width = depth_image.shape[1]
-    (x, y, radius) = head_location
-
-    x_render = (x/image_width * 2) - 1
-    y_render  = (y/image_height * 2) - 1
-
-    # I think y and x should be flipped, according to kinect readings
-    raw_depth_at_head = float(depth_image[int(y), int(x)])
-    # Rendering server wants depth in meters
-    # First time I get to write magic numbers yay!
-    # Conversion taken from http://shiffman.net/p5/kinect/
-    depth_render = 1.0 / (raw_depth_at_head * -0.0030711016 + 3.3309495161);
-
-    return (x_render, y_render, depth_render)
-
 
 def kinect_head_detect_test():
     kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
@@ -163,6 +162,13 @@ def kinect_head_detect_test():
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+
+def main():
+    """Main to test this function. Should not be run for any other reason."""
+    #kinect_head_detect_test()
+    send_head_data_to_rendering_server()
+
 
 if __name__ == "__main__":
     main()

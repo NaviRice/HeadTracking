@@ -47,11 +47,3 @@ class PositionServer:
                 print(addr, " -closed")
                 conn.close()
                 break
-
-ps = PositionServer(40007)
-
-a = 0
-
-while True:
-    a+=0.01
-    ps.set_values(a, a/2.0, a-1.0)

@@ -27,6 +27,7 @@ def main():
     while(1):
         img_set, last_count = _get_next_image(kinect_client)
         current_depth = navirice_image_to_np(img_set.Depth)
+        current_depth = np.where(current_depth<=0.0, 1, current_depth)
         current_ir = navirice_image_to_np(img_set.IR)
         forground_depth, forground_ir = _extract_forground(
                 background_depth, current_depth, current_ir)

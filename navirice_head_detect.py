@@ -16,16 +16,14 @@ sideCascade = cv2.CascadeClassifier('haarcascade_profileface.xml')
 cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
 
 
-def get_head_from_img(np_image):
+def get_head_from_img(np_image, should_scale=True):
     """Detects head from image and returns location of it.
 
     returns:
         Tuple of x, y, and radius values, where domains are 0-1
         None (if head is not detected
     """
-
-    #i dont bother scaling and graying the image because... its 500 pixels wide and already grayscale
-#    image = _preprocess_image(np_image)
+    # Since image should be ir, the data does not need to be grayscaled
     image = np_image
     potential_boxes = _run_cascades(image)
 
@@ -33,22 +31,12 @@ def get_head_from_img(np_image):
         # cv2.imshow("ir", image)
         return None
 
-    (x, y, radius) = _get_head_from_boxes(image, potential_boxes)
-    print("scaled: {}, {}, {}".format(x, y, radius))
+    (x, y, radius) = _get_head_from_boxes(image, potential_boxes, should_scale)
     # Debug show image ir
     #cv2.imshow("ir", image)
 
     return (x, y, radius)
 
-
-def _preprocess_image(image):
-    """Returns a smaller and grayscaled image. Smaller to faster process img, grayscale for Haar cascades.
-    Deprecated. Used for Harr Cascades on RGB images. We do Harr Cascades on IR now."""
-    resize_scale = 0.3
-    resized_img = cv2.resize(
-            image,None,fx=resize_scale, fy=resize_scale, interpolation = cv2.INTER_CUBIC)
-    gray_img = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
-    return gray_img
 
 def _run_cascades(image):
     """Returns cv2.rectangle boxes of where it thinks heads are.
@@ -68,7 +56,8 @@ def _run_cascades(image):
 
     return boxes
 
-def _get_head_from_boxes(image, boxes):
+
+def _get_head_from_boxes(image, boxes, should_scale=True):
     """Expects a list of boxes, or will throw an error.
 
     Right now, it just takes the first box in the potential boxes (basically
@@ -86,15 +75,20 @@ def _get_head_from_boxes(image, boxes):
     y = top_left_y + box_height/2
     radius = max(box_width, box_height)/2
 
-    scaled_x = x/image_width
-    scaled_y = y/image_height
-    scaled_radius = max(box_width/image_width, box_height/image_height)/2
-
     # Debug draw circle/rectangle on face
-    cv2.circle(image, (int(x), int(y)), int(radius), (255, 255, 255), thickness=10, lineType=8, shift=0)
-#    cv2.rectangle(image, (x, y), (x+box_width, int(y+box_height)), (255, 255, 255), 2)
+    cv2.circle(image, (int(x), int(y)), 5, (255, 255, 255), thickness=10, lineType=8, shift=0)
+    cv2.rectangle(
+            image,
+            (int(top_left_x), int(top_left_y)),
+            (int(top_left_x + box_width), int(top_left_y + box_height)),
+            (255, 255, 255), 2)
+    if should_scale:
+        x = x/image_width
+        y = y/image_height
+        radius = max(box_width/image_width, box_height/image_height)/2
 
-    return (scaled_x, scaled_y, scaled_radius)
+    return (x, y, radius)
+
 
 def main():
     """Main to test this function. Should not be run for any other reason."""
@@ -103,20 +97,55 @@ def main():
 
 
 def send_head_data_to_rendering_server():
+    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
     last_count = 0
     while(1):
         img_set, last_count = kinect_client.navirice_get_image()
-        if(img_set != None):
-            print("IR width: {}\nIR height: {}\nIR channels: {}\n".format(
-                img_set.IR.width, img_set.IR.height, img_set.IR.channels))
-            np_image = navirice_ir_to_np(img_set.IR)
-            get_head_from_img(np_image)
-            cv2.imshow("IR", np_image) # show preview
-            #cv2.imshow("IR", cv2.resize(np_image,None,fx=2.0, fy=2.0, interpolation = cv2.INTER_CUBIC)) #show preview, but bigger
+        if(img_set is None):
+            return
 
+        np_ir_image = navirice_ir_to_np(img_set.IR)
+        np_depth_image = navirice_image_to_np(img_set.Depth, scale=False)
+
+        # Debug Images
+        cv2.circle(np_ir_image, (0, 0), 5, (255, 255, 255),
+                thickness=10, lineType=8, shift=0)
+        cv2.imshow("IR", np_ir_image) # show preview
+        cv2.imshow("Depth", np_depth_image) # show preview
+
+        potential = get_head_from_img(np_ir_image, should_scale=False)
+        if potential is None:
+            continue
+        head_location = potential
+
+        (render_x, render_y, render_depth) = _calculate_render_info(
+                np_depth_image, head_location)
+
+        print("DEPTH DATA: x:{}, y:{} raw:{} scaled:{}".format(
+            x, y, raw_depth_at_head, depth_render))
+        print("KINECT DATA: x:{}, y:{}, depth:{}".format(
+            x_render, y_render, depth_render))
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    (x, y, radius) = get_head_from_img(np_image)
+
+
+def _calculate_render_info(depth_image, head_location):
+    """Returns -1 to 1 for x and y, and meters to head location for depth."""
+    image_height= depth_image.shape[0]
+    image_width = depth_image.shape[1]
+    (x, y, radius) = head_location
+
+    x_render = (x/image_width * 2) - 1
+    y_render  = (y/image_height * 2) - 1
+
+    # I think y and x should be flipped, according to kinect readings
+    raw_depth_at_head = float(depth_image[int(y), int(x)])
+    # Rendering server wants depth in meters
+    # First time I get to write magic numbers yay!
+    # Conversion taken from http://shiffman.net/p5/kinect/
+    depth_render = 1.0 / (raw_depth_at_head * -0.0030711016 + 3.3309495161);
+
+    return (x_render, y_render, depth_render)
 
 
 def kinect_head_detect_test():

@@ -1,4 +1,6 @@
 from navirice_get_image import KinectClient
+from FakeKinect import FakeKinectClient
+
 from navirice_helpers import navirice_image_to_np
 from navirice_head_detect import get_head_from_img
 
@@ -11,7 +13,8 @@ DEFAULT_PORT = 29000        # The same port as used by the server
 
 
 def main():
-    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    # kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    kinect_client = FakeKinectClient(DEFAULT_HOST, DEFAULT_PORT)
     last_count = 0
 
     first_img_set, last_count = _get_next_image(kinect_client)
@@ -58,3 +61,4 @@ def _extract_forground(background_depth, current_depth, current_ir):
 
 if __name__ == "__main__":
     main()
+

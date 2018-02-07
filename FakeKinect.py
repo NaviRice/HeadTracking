@@ -32,8 +32,8 @@ class FakeKinectClient:
             except FileNotFoundError:
                 print("FileNotFound")
                 # File not found, so try another count
-                if self.last_count >= 1000:
-                    print("Exceeded 1000 images to check")
+                if self.last_count >= 10000:
+                    print("Exceeded 10000 images to check")
                     return
             self.last_count += 1
         return img_set, self.last_count

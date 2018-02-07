@@ -1,4 +1,5 @@
 from navirice_get_image import KinectClient
+from FakeKinect import FakeKinectClient
 from position_server import PositionServer
 from navirice_helpers import navirice_image_to_np
 from navirice_helpers import navirice_ir_to_np
@@ -18,12 +19,15 @@ cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
 
 
 def send_head_data_to_rendering_server():
+    print("called")
     position_server = PositionServer(40007)
-    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    # To run without physical kinect, type "fake", otherwise type "real"
+    kinect_client = _get_kinect_client("fake")
     last_count = 0
     while(1):
         img_set, last_count = kinect_client.navirice_get_image()
         if(img_set is None):
+            print("none image")
             return
 
         np_ir_image = navirice_ir_to_np(img_set.IR)
@@ -44,10 +48,19 @@ def send_head_data_to_rendering_server():
                 np_depth_image, head_location)
 
         print("Render DATA: x:{}, y:{}, depth:{}".format(
-            x_render, y_render, depth_render))
+            render_x, render_y, render_depth))
         position_server.set_values(render_x, render_y, render_depth)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+def _get_kinect_client(kinect_type="real"):
+    """Gives back fake kinect client if kinect_type is fake, otherwise 
+    give real one.
+    If you don't have a physical kinect with you, use fake kinect client"""
+    if kinect_type is "fake":
+        return FakeKinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    else:
+        return KinectClient(DEFAULT_HOST, DEFAULT_PORT)
 
 
 def _calculate_render_info(depth_image, head_location):

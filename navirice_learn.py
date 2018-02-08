@@ -75,9 +75,9 @@ def load_train_set(data_list, scale_val):
                     # real.append(combined_image)
                     real.append(depth_image)
 
-                    cv2.imshow("real-scaled-ir", depth_image)
-                    cv2.imshow("expected", scaled_bitmap)
-                    cv2.waitKey(50)
+                    #cv2.imshow("real-scaled-ir", depth_image)
+                    #cv2.imshow("expected", scaled_bitmap)
+                    #cv2.waitKey(1)
 
             del img_set
     return (real, expected)
@@ -116,9 +116,9 @@ def cnn_model_fn(features):
     # unkown amount, higrt and width, channel
     input_layer = tf.reshape(features, [-1, 424, 512, 1])
     scaled_layer = tf.image.resize_images(features, [53, 64])
-    encoder1 = coder(scaled_layer, [5, 5, 1, 64], True)
-    encoder2 = coder(encoder1, [5,5,64,8], True)
-    encoder3 = coder(encoder2, [5,5,8,8], True)  
+    encoder1 = coder(scaled_layer, [30, 30, 1, 64], True)
+    encoder2 = coder(encoder1, [5,5,64,32], True)
+    encoder3 = coder(encoder2, [5,5,32,8], True)  
     encoder9 = coder(encoder3, [5,5,8,2], True)   
     decoder1 = coder(encoder9, [5,5,2,1], False)
     last = tf.sigmoid(decoder1)
@@ -229,10 +229,14 @@ def main():
             # cv2.imshow("input", tests[i])
             # cv2.imshow("input-depth", depth_image)
             # cv2.imshow("input-ir", ir_image)
-            cv2.imshow("input-depth", tests[i])
-            cv2.imshow("output", outs[0])
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            id_name = "id" + str(i)
+            o_name = "o"+str(i)
+            cv2.imshow(id_name, tests[i])
+            cv2.imshow(o_name, outs[0])
+            
+        if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
 
 if __name__ == "__main__":
     main()

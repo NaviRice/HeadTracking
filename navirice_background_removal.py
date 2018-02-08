@@ -50,14 +50,10 @@ def _get_next_image(kinect_client):
 def _extract_forground(background_depth, current_depth, current_ir):
     width = current_depth.shape[1]
     height = current_depth.shape[0]
-    forground_depth = np.zeros(current_depth.shape)
-    forground_ir = np.zeros(current_depth.shape)
-    for y in range(0, height):
-        for x in range(0, width):
-            if current_depth[y, x] < background_depth[y, x]:
-                forground_depth[y,x] = current_depth[y,x]
-                forground_ir[y,x] = current_ir[y,x]
-    return forground_depth, forground_ir
+    mask = current_depth >= background_depth
+    current_depth[mask] = 0
+    current_ir[mask] = 0
+    return current_depth, current_ir
 
 
 if __name__ == "__main__":

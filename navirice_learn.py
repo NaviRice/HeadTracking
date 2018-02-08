@@ -75,9 +75,9 @@ def load_train_set(data_list, scale_val):
                     # real.append(combined_image)
                     real.append(depth_image)
 
-                    # cv2.imshow("real-scaled-ir", ir_image_to_1)
-                    # cv2.imshow("expected", scaled_bitmap)
-                    # cv2.waitKey(100)
+                    cv2.imshow("real-scaled-ir", depth_image)
+                    cv2.imshow("expected", scaled_bitmap)
+                    cv2.waitKey(50)
 
             del img_set
     return (real, expected)
@@ -115,21 +115,11 @@ def generate_batch(count, real_list, expected_list):
 def cnn_model_fn(features):
     # unkown amount, higrt and width, channel
     input_layer = tf.reshape(features, [-1, 424, 512, 1])
-    # scaled_layer = tf.image.resize_images(features, [424, 512])
     scaled_layer = tf.image.resize_images(features, [53, 64])
-    encoder1 = coder(scaled_layer, [5,5,1,12], True)
-    # pool1 = max_pool_2x2(encoder1)
-    # encoder2 = coder(pool1, [7,7,32,64], True)
-    encoder2 = coder(encoder1, [5,5,12,8], True)
-    # pool2 = max_pool_2x2(encoder2)
-    # encoder3 = coder(pool2, [5,5,64,48], True)  
+    encoder1 = coder(scaled_layer, [5, 5, 1, 64], True)
+    encoder2 = coder(encoder1, [5,5,64,8], True)
     encoder3 = coder(encoder2, [5,5,8,8], True)  
-    encoder4 = coder(encoder3, [5,5,8,6], True)  
-    encoder5 = coder(encoder4, [5,5,6,6], True)  
-    encoder6 = coder(encoder5, [5,5,6,6], True)  
-    encoder7 = coder(encoder6, [5,5,6,4], True)  
-    encoder8 = coder(encoder7, [5,5,4,2], True)  
-    encoder9 = coder(encoder8, [5,5,2,2], True)   
+    encoder9 = coder(encoder3, [5,5,8,2], True)   
     decoder1 = coder(encoder9, [5,5,2,1], False)
     last = tf.sigmoid(decoder1)
 
@@ -222,9 +212,9 @@ def main():
     while(True):
         cnt += 1
         print("STEP COUNT: ", cnt)
-        for i in range(100):
+        for i in range(10):
             (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
-            print("-")
+            print("-", end = '')
             sys.stdout.flush()
             train_step.run(session=sess, feed_dict={x: reals_i, y_: expecteds_i})
 

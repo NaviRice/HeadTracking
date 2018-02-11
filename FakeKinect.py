@@ -37,3 +37,7 @@ class FakeKinectClient:
                     return
             self.last_count += 1
         return img_set, self.last_count
+
+    def navirice_capture_settings(self, rgb, ir, depth):
+        """Takes in rgb, ir, and depth to be similar to KinectClient."""
+        pass

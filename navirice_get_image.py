@@ -31,7 +31,7 @@ class KinectClient:
 
     def navirice_capture_settings(self,  rgb, ir, depth):
         print("---Requesting new settings...")
-        
+
         settings = navirice_image_pb2.ProtoCaptureSetting()
         settings.IR = ir
         settings.RGB = rgb

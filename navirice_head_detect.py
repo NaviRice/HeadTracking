@@ -22,27 +22,30 @@ def send_head_data_to_rendering_server():
     print("called")
     position_server = PositionServer(40007)
     # To run without physical kinect, type "fake", otherwise type "real"
-    kinect_client = _get_kinect_client("fake")
+    kinect_client = _get_kinect_client("real")
+    kinect_client.navirice_capture_settings(rgb=False, ir=True, depth=True)
     last_count = 0
     while(1):
         img_set, last_count = kinect_client.navirice_get_image()
-        if(img_set is None):
+        if(img_set is None
+                or img_set.IR.width == 0
+                or img_set.Depth.width == 0):
             print("none image")
-            return
+            continue
 
         np_ir_image = navirice_ir_to_np(img_set.IR)
         np_depth_image = navirice_image_to_np(img_set.Depth, scale=False)
-
-        # Debug Images
-        cv2.circle(np_ir_image, (0, 0), 5, (255, 255, 255),
-                thickness=10, lineType=8, shift=0)
-        cv2.imshow("IR", np_ir_image) # show preview
-        cv2.imshow("Depth", np_depth_image) # show preview
 
         potential = get_head_from_img(np_ir_image, should_scale=False)
         if potential is None:
             continue
         head_location = potential
+
+        # Debug Images
+        # cv2.circle(np_ir_image, (0, 0), 5, (255, 255, 255),
+                # thickness=10, lineType=8, shift=0)
+        cv2.imshow("IR", np_ir_image) # show preview
+        cv2.imshow("Depth", np_depth_image) # show preview
 
         (render_x, render_y, render_depth) = _calculate_render_info(
                 np_depth_image, head_location)
@@ -77,7 +80,8 @@ def _calculate_render_info(depth_image, head_location):
     # Rendering server wants depth in meters
     # First time I get to write magic numbers yay!
     # Conversion taken from http://shiffman.net/p5/kinect/
-    depth_render = 1.0 / (raw_depth_at_head * -0.0030711016 + 3.3309495161);
+    #depth_render = 1.0 / (raw_depth_at_head * -0.0030711016 + 3.3309495161);
+    depth_render = raw_depth_at_head
 
 
     print("raw_data DATA: x:{}, y:{} raw:{} scaled:{}".format(
@@ -162,10 +166,14 @@ def _get_head_from_boxes(image, boxes, should_scale=True):
 
 def kinect_head_detect_test():
     kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    kinect_client.navirice_capture_settings(rgb=False, ir=True, depth=True)
+    
     last_count = 0
     while(1):
         img_set, last_count = kinect_client.navirice_get_image()
-        if(img_set != None):
+        if(img_set != None
+                and img_set.IR.width > 0
+                and img_set.Depth.width > 0):
             print("IR width: {}\nIR height: {}\nIR channels: {}\n".format(
                 img_set.IR.width, img_set.IR.height, img_set.IR.channels))
             np_image = navirice_ir_to_np(img_set.IR)
@@ -179,7 +187,7 @@ def kinect_head_detect_test():
 
 def main():
     """Main to test this function. Should not be run for any other reason."""
-    #kinect_head_detect_test()
+    # kinect_head_detect_test()
     send_head_data_to_rendering_server()
 
 

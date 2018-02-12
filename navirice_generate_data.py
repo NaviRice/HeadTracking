@@ -57,8 +57,8 @@ def generate_bitmap_label(rgb_or_ir_image, depth_image):
 
     possible_head_data = get_head_from_img(rgb_or_ir_image)
     if possible_head_data is None:
-        return None
-
+        bitmap_image = np.zeros(depth_image.shape)
+        return bitmap_image
     # (x, y, radius) = possible_head_data # Get the head data as ranges from 0-1
     # (x, y, radius) = get_scaled(x, y, radius, depth_image) # Scale data to depth image
     # bitmap_image = np.zeros(depth_image.shape) # initialize compeletly black label
@@ -81,9 +81,10 @@ def generate_bitmap_label(rgb_or_ir_image, depth_image):
     threshold_indecies = np.logical_or(sub_array_with_head < lower_threshold, upper_threshold < sub_array_with_head)
     sub_array_with_head[threshold_indecies] = black
     sub_array_with_head *= 1.0 
-    sub_array_with_head[sub_array_with_head > 1.0] = 1.0
+    #sub_array_with_head[sub_array_with_head > 0.0001] = 2.0
     bitmap_image = np.zeros(depth_image.shape) # initialize compeletly black label
     bitmap_image[head_location_dimensions] = sub_array_with_head/depth_to_meters
+    bitmap_image[bitmap_image > 0.00001] = 1.0
     return bitmap_image
 
 

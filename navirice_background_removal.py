@@ -13,8 +13,9 @@ DEFAULT_PORT = 29000        # The same port as used by the server
 
 
 def main():
-    # kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
-    kinect_client = FakeKinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    kinect_client.navirice_capture_settings(rgb=False, ir=True, depth=True)
+    # kinect_client = FakeKinectClient(DEFAULT_HOST, DEFAULT_PORT)
     last_count = 0
 
     first_img_set, last_count = _get_next_image(kinect_client)
@@ -42,7 +43,10 @@ def main():
 def _get_next_image(kinect_client):
     img_set = None
     last_count = - 1
-    while (img_set == None or last_count == -1):
+    while (img_set == None
+            or img_set.IR.width == 0
+            or img_set.Depth.width == 0
+            or last_count == -1):
         img_set, last_count = kinect_client.navirice_get_image()
     return img_set, last_count
 

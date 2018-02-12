@@ -73,7 +73,7 @@ def _calculate_render_info(depth_image, head_location):
     (x, y, radius) = head_location
 
     x_render = (x/image_width * 2) - 1
-    y_render  = (y/image_height * 2) - 1
+    y_render  = -((y/image_height * 2) - 1)
 
     # I think y and x should be flipped, according to kinect readings
     raw_depth_at_head = float(depth_image[int(y), int(x)])

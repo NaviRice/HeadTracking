@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='navirice_image.proto',
   package='navirice',
   syntax='proto3',
-  serialized_pb=_b('\n\x14navirice_image.proto\x12\x08navirice\"4\n\x0fProtoImageCount\x12\r\n\x05\x63ount\x18\x01 \x01(\x04\x12\x12\n\nbyte_count\x18\x02 \x01(\x04\"y\n\x10ProtoAcknowledge\x12-\n\x05state\x18\x01 \x01(\x0e\x32\x1e.navirice.ProtoAcknowledge.ACK\x12\r\n\x05\x63ount\x18\x02 \x01(\x04\"\'\n\x03\x41\x43K\x12\x08\n\x04NONE\x10\x00\x12\x0c\n\x08\x43ONTINUE\x10\x01\x12\x08\n\x04STOP\x10\x02\"\xb2\x01\n\nProtoImage\x12\r\n\x05width\x18\x01 \x01(\r\x12\x0e\n\x06height\x18\x02 \x01(\r\x12\x10\n\x08\x63hannels\x18\x03 \x01(\r\x12\x30\n\tdata_type\x18\x04 \x01(\x0e\x32\x1d.navirice.ProtoImage.DataType\x12\x11\n\tdata_size\x18\x05 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x06 \x01(\x0c\" \n\x08\x44\x61taType\x12\t\n\x05\x46LOAT\x10\x00\x12\t\n\x05UBYTE\x10\x01\"\x88\x01\n\rProtoImageSet\x12\r\n\x05\x63ount\x18\x01 \x01(\x04\x12!\n\x03RGB\x18\x02 \x01(\x0b\x32\x14.navirice.ProtoImage\x12#\n\x05\x44\x65pth\x18\x03 \x01(\x0b\x32\x14.navirice.ProtoImage\x12 \n\x02IR\x18\x04 \x01(\x0b\x32\x14.navirice.ProtoImage\"=\n\x13ProtoCaptureSetting\x12\x0b\n\x03RGB\x18\x01 \x01(\x08\x12\r\n\x05\x44\x65pth\x18\x02 \x01(\x08\x12\n\n\x02IR\x18\x03 \x01(\x08\"w\n\x0cProtoRequest\x12-\n\x05state\x18\x01 \x01(\x0e\x32\x1e.navirice.ProtoRequest.ReqType\x12\r\n\x05\x63ount\x18\x02 \x01(\x04\")\n\x07ReqType\x12\t\n\x05IMAGE\x10\x00\x12\x13\n\x0f\x43\x41PTURE_SETTING\x10\x01\x62\x06proto3')
+  serialized_pb=_b('\n\x14navirice_image.proto\x12\x08navirice\"4\n\x0fProtoImageCount\x12\r\n\x05\x63ount\x18\x01 \x01(\x04\x12\x12\n\nbyte_count\x18\x02 \x01(\x04\"y\n\x10ProtoAcknowledge\x12-\n\x05state\x18\x01 \x01(\x0e\x32\x1e.navirice.ProtoAcknowledge.ACK\x12\r\n\x05\x63ount\x18\x02 \x01(\x04\"\'\n\x03\x41\x43K\x12\x08\n\x04NONE\x10\x00\x12\x0c\n\x08\x43ONTINUE\x10\x01\x12\x08\n\x04STOP\x10\x02\"\xb2\x01\n\nProtoImage\x12\r\n\x05width\x18\x01 \x01(\r\x12\x0e\n\x06height\x18\x02 \x01(\r\x12\x10\n\x08\x63hannels\x18\x03 \x01(\r\x12\x30\n\tdata_type\x18\x04 \x01(\x0e\x32\x1d.navirice.ProtoImage.DataType\x12\x11\n\tdata_size\x18\x05 \x01(\r\x12\x0c\n\x04\x64\x61ta\x18\x06 \x01(\x0c\" \n\x08\x44\x61taType\x12\t\n\x05\x46LOAT\x10\x00\x12\t\n\x05UBYTE\x10\x01\"\x88\x01\n\rProtoImageSet\x12\r\n\x05\x63ount\x18\x01 \x01(\x04\x12!\n\x03RGB\x18\x02 \x01(\x0b\x32\x14.navirice.ProtoImage\x12#\n\x05\x44\x65pth\x18\x03 \x01(\x0b\x32\x14.navirice.ProtoImage\x12 \n\x02IR\x18\x04 \x01(\x0b\x32\x14.navirice.ProtoImage\"L\n\x13ProtoCaptureSetting\x12\x0b\n\x03RGB\x18\x01 \x01(\x08\x12\r\n\x05\x44\x65pth\x18\x02 \x01(\x08\x12\n\n\x02IR\x18\x03 \x01(\x08\x12\r\n\x05\x63ount\x18\x04 \x01(\x04\"\xb5\x01\n\x0cProtoRequest\x12-\n\x05state\x18\x01 \x01(\x0e\x32\x1e.navirice.ProtoRequest.ReqType\x12\r\n\x05\x63ount\x18\x02 \x01(\x04\x12<\n\x15\x63\x61pture_setting_value\x18\x03 \x01(\x0b\x32\x1d.navirice.ProtoCaptureSetting\")\n\x07ReqType\x12\t\n\x05IMAGE\x10\x00\x12\x13\n\x0f\x43\x41PTURE_SETTING\x10\x01\x62\x06proto3')
 )
 
 
@@ -89,8 +89,8 @@ _PROTOREQUEST_REQTYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=672,
-  serialized_end=713,
+  serialized_start=750,
+  serialized_end=791,
 )
 _sym_db.RegisterEnumDescriptor(_PROTOREQUEST_REQTYPE)
 
@@ -319,6 +319,13 @@ _PROTOCAPTURESETTING = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='count', full_name='navirice.ProtoCaptureSetting.count', index=3,
+      number=4, type=4, cpp_type=4, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -332,7 +339,7 @@ _PROTOCAPTURESETTING = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=531,
-  serialized_end=592,
+  serialized_end=607,
 )
 
 
@@ -357,6 +364,13 @@ _PROTOREQUEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None, file=DESCRIPTOR),
+    _descriptor.FieldDescriptor(
+      name='capture_setting_value', full_name='navirice.ProtoRequest.capture_setting_value', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None, file=DESCRIPTOR),
   ],
   extensions=[
   ],
@@ -370,8 +384,8 @@ _PROTOREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=594,
-  serialized_end=713,
+  serialized_start=610,
+  serialized_end=791,
 )
 
 _PROTOACKNOWLEDGE.fields_by_name['state'].enum_type = _PROTOACKNOWLEDGE_ACK
@@ -382,6 +396,7 @@ _PROTOIMAGESET.fields_by_name['RGB'].message_type = _PROTOIMAGE
 _PROTOIMAGESET.fields_by_name['Depth'].message_type = _PROTOIMAGE
 _PROTOIMAGESET.fields_by_name['IR'].message_type = _PROTOIMAGE
 _PROTOREQUEST.fields_by_name['state'].enum_type = _PROTOREQUEST_REQTYPE
+_PROTOREQUEST.fields_by_name['capture_setting_value'].message_type = _PROTOCAPTURESETTING
 _PROTOREQUEST_REQTYPE.containing_type = _PROTOREQUEST
 DESCRIPTOR.message_types_by_name['ProtoImageCount'] = _PROTOIMAGECOUNT
 DESCRIPTOR.message_types_by_name['ProtoAcknowledge'] = _PROTOACKNOWLEDGE

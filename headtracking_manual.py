@@ -93,7 +93,7 @@ class Window(Frame):
             self.draw_circle()
             print("Current Depth: {}".format(self.current_depth))
             send_data_to_renderer(
-                self.current_x, self.current_y, self.current_depth)
+                self.old_x_event, self.old_y_event, self.current_depth)
 
     def mousescrollup(self, event):
         # According to docs, I need to divide data by 120, idk why
@@ -102,7 +102,7 @@ class Window(Frame):
             self.draw_circle()
             print("Current Depth: {}".format(self.current_depth))
             send_data_to_renderer(
-                self.current_x, self.current_y, self.current_depth)
+                self.old_x_event, self.old_y_event, self.current_depth)
 
     def draw_circle(self):
         x, y, depth = self.clip(self.current_x_event, self.current_y_event, self.current_depth)
@@ -130,7 +130,7 @@ class Window(Frame):
         return x, y, depth
 
 # Global Var that starts the position_server
-position_server = PositionServer(40007)
+position_server = PositionServer(4007)
 
 def send_data_to_renderer(raw_x, raw_y, depth):
     """Converts raw mouse x and y data, to canonical coords -1 to 1"""

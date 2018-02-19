@@ -8,6 +8,8 @@ from tkinter import *
 canvas_border = 50
 canvas_width = canvas_height = 500
 
+mouse_scroll_force_update = True
+
 def main():
     root = Tk()
     root.resizable(width=False, height=False)
@@ -75,7 +77,7 @@ class Window(Frame):
 
     def mousescrolldown(self, event):
         # According to docs, I need to divide data by 120, idk why
-        if self.record:
+        if self.record or mouse_scroll_force_update:
             self.current_depth -= 1
             self.current_depth = max(300, self.current_depth)
             print("Current Depth: {}".format(self.current_depth))
@@ -84,7 +86,7 @@ class Window(Frame):
 
     def mousescrollup(self, event):
         # According to docs, I need to divide data by 120, idk why
-        if self.record:
+        if self.record or mouse_scroll_force_update:
             self.current_depth += 1
             print("Current Depth: {}".format(self.current_depth))
             send_data_to_renderer(

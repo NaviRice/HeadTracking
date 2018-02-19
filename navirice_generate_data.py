@@ -19,7 +19,7 @@ def main():
     # while(1):
     #     img_set, last_count = kinect_client.navirice_get_image()
 
-    #     if img_set is None:
+    #     if(img_set == None or img_set.IR.width == 0 or img_set.Depth.width == 0):
     #         continue
 
     #     rgb_image = navirice_image_to_np(img_set.RGB)

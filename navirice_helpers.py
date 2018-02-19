@@ -10,7 +10,7 @@ def navirice_img_set_write_file(session_name, img_set, last_count):
     f.close()
 
 
-def navirice_image_to_np(img):
+def navirice_image_to_np(img, scale=True):
     """Should not be called with ir."""
     tp = img.data_type
     divisor = 1
@@ -24,7 +24,7 @@ def navirice_image_to_np(img):
     else:
         tp = np.uint8
     rgb_raw = np.frombuffer(img.data, dtype=tp, count=img.width*img.height*img.channels)
-    if(img.data_type == navirice_image_pb2.ProtoImage.FLOAT):
+    if(img.data_type == navirice_image_pb2.ProtoImage.FLOAT and scale):
         rgb_raw = (rgb_raw) / divisor
     im = rgb_raw.reshape((img.height, img.width, img.channels))
     return im

@@ -36,6 +36,11 @@ class Window(Frame):
         self.record = False
         self.current_x = 0
         self.current_y = 0
+        self.old_x_event = 0
+        self.old_y_event = 0
+
+        self.current_x_event = 0
+        self.current_y_event = 0
         self.current_depth = 300
 
 
@@ -45,6 +50,7 @@ class Window(Frame):
         self.session_text = Text(self, height=1, width=20)
         self.session_text.place(x=5, y=30)
         self.session_text.insert(END, "test")
+
 
         self.canvas = Canvas(self,
                 height=canvas_height, width=canvas_width, bd=canvas_border)
@@ -59,27 +65,32 @@ class Window(Frame):
         self.canvas.bind("<Button-5>", self.mousescrolldown)
 
     def mousemove(self, event):
-        circle_color = "red"
         x, y, depth = self.clip(event.x, event.y, self.current_depth)
+        self.current_x_event = x
+        self.current_y_event = y
         if self.record is True:
             send_data_to_renderer(x, y, self.current_depth)
-            circle_color = "green"
-        self.draw_circle(event.x, event.y, circle_color)
+            self.old_x_event = event.x
+            self.old_y_event = event.y
+        self.draw_circle()
 
     def mouse1press(self, event):
         self.record = True
-        self.draw_circle(event.x, event.y, "green")
+        self.old_x_event = self.current_x_event = event.x
+        self.old_y_event = self.current_y_event = event.y
+        self.draw_circle(event.x, event.y)
         send_data_to_renderer(event.x, event.y, self.current_depth)
 
     def mouse1release(self, event):
         self.record = False
-        self.draw_circle(event.x, event.y, "red")
+        self.draw_circle()
 
     def mousescrolldown(self, event):
         # According to docs, I need to divide data by 120, idk why
         if self.record or mouse_scroll_force_update:
             self.current_depth -= 1
             self.current_depth = max(300, self.current_depth)
+            self.draw_circle()
             print("Current Depth: {}".format(self.current_depth))
             send_data_to_renderer(
                 self.current_x, self.current_y, self.current_depth)
@@ -88,19 +99,25 @@ class Window(Frame):
         # According to docs, I need to divide data by 120, idk why
         if self.record or mouse_scroll_force_update:
             self.current_depth += 1
+            self.draw_circle()
             print("Current Depth: {}".format(self.current_depth))
             send_data_to_renderer(
                 self.current_x, self.current_y, self.current_depth)
 
-    def draw_circle(self, x, y, color):
-        x, y, depth = self.clip(x, y, self.current_depth)
+    def draw_circle(self):
+        x, y, depth = self.clip(self.current_x_event, self.current_y_event, self.current_depth)
+        oldx, oldy, olddepth = self.clip(self.old_x_event, self.old_y_event, self.current_depth)
         self.canvas.delete("all")
         self.canvas.create_rectangle(
                 canvas_border, canvas_border,
                 canvas_width+canvas_border, canvas_height+canvas_border,
                 fill="#476042")
-        self.canvas.create_oval(x-5, y-5, x+5, y+5,
-                outline="black", fill=color, width=2)
+        cirsize = depth/25
+        self.canvas.create_oval(oldx-cirsize, oldy-cirsize, oldx+cirsize, oldy+cirsize,
+                outline="black", width=2)
+
+        self.canvas.create_oval(x-2, y-2, x+2, y+2,
+                fill="green" if self.record else "red", outline="")
         self.canvas.pack(fill=BOTH, expand=1)
 
     def clip(self, x, y, depth):

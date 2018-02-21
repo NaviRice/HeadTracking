@@ -23,21 +23,27 @@ class FakeKinectClient:
                 file_location = (datafolder + mode
                     + "_" + str(self.last_count)
                     + ".img_set")
-                print("WatNone. {}.{}.{}.{}".format(
-                    datafolder, mode, self.last_count, file_location))
                 f = open(file_location, "rb")
                 data = f.read()
                 img_set = navirice_image_pb2.ProtoImageSet()
                 img_set.ParseFromString(data)
             except FileNotFoundError:
-                print("FileNotFound")
                 # File not found, so try another count
                 if self.last_count >= 10000:
-                    print("Exceeded 10000 images to check")
-                    return
+                    print("Exceeded 10000 images to check, looping")
+                    return None
             self.last_count += 1
         return img_set, self.last_count
 
     def navirice_capture_settings(self, rgb, ir, depth):
         """Takes in rgb, ir, and depth to be similar to KinectClient."""
         pass
+
+    def navirice_get_next_image(self, mode="All"):
+        potential_image = self.navirice_get_image(mode)
+        if potential_image == None:
+            self.last_count = 1
+            return self.navirice_get_image()
+        else:
+            return potential_image
+

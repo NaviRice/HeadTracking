@@ -5,6 +5,7 @@ from navirice_helpers import navirice_image_to_np
 from navirice_helpers import navirice_ir_to_np
 
 from threading import Thread, Lock
+from collections import namedtuple
 import cv2
 import numpy as np
 import time
@@ -18,117 +19,43 @@ stack = []
 queue_mutex = Lock()
 stack_mutex = Lock()
 
+HeadPos = namedtuple('HeadPos', 'x y radius')
+
 class QueueHead():
 
-    def __init__(self, count, head):
-        """Head is (x, y, radius)."""
+    def __init__(self, count, head_pos):
+        """Head is a named tuple HeadPos (x, y, radius)."""
         self.count = count
-        self.head = head
+        self.head_pos = head_pos
 
 
-def smart_threaded_haar_test():
-    global detected_heads_queue
-
+def main():
+    """Main to test this function. Should not be run for any other reason."""
     kinect_client = _get_kinect_client("fake")
-    last_count = 0
-    for i in range(2):
-        thread = Thread(target=thread_worker)
-        thread.daemon = True
-        thread.start()
-
+    position_server = PositionServer(4007)
+    initialize_haar_threads(thread_count=1)
     while(1):
-        img_set, last_count = kinect_client.navirice_get_image()
-        if(img_set != None
-                and img_set.IR.width > 0
-                and img_set.Depth.width > 0):
-            np_image = navirice_ir_to_np(img_set.IR)
-            stack_mutex.acquire()
-            print("ADDING IMAGE TO STACK")
-            stack.append(np_image)
-            stack_mutex.release()
-
-            queue_mutex.acquire()
-            for item in detected_heads_queue:
-                head = item.head
-                if item.count > 0:
-                    image_height= np_image.shape[0]
-                    image_width = np_image.shape[1]
-                    x, y, radius = head[0], head[1], head[2]
-                    cv2.circle(np_image, (int(x*image_width), int(y*image_height)),
-                            int(radius*image_width), (255, 255, 255), thickness=5,
-                            lineType=8, shift=0)
-                    print("OHMG: {}, {}, {}".format(x, y, radius))
-                    item.count -= 1
-            for item in detected_heads_queue:
-                if item.count <= 0:
-                    detected_heads_queue.remove(item)
-            queue_mutex.release()
-            cv2.imshow("Show", np_image)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-def thread_worker():
-    print("THREAD WORKKERKERKTRJ!!!")
-    faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-    faceCascade1 = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
-    faceCascade2 = cv2.CascadeClassifier('haarcascade_frontalface_alt2.xml')
-    sideCascade = cv2.CascadeClassifier('haarcascade_profileface.xml')
-    cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
-    while True:
-        img = None
-        stack_mutex.acquire()
-        if len(stack) > 0:
-            img = stack.pop()
-            print("REMOVING IMAGE FROM STACK")
-        stack_mutex.release()
-        if img is not None:
-            print("PROCESSING IMAGE")
-            # potential_location is (x, y, radius)
-            potential_location = get_head_from_img(img, cascades)
-            if potential_location is not None:
-                queue_mutex.acquire()
-                queue_head = QueueHead(3, potential_location)
-                detected_heads_queue.append(queue_head)
-                queue_mutex.release()
-    print("SO DED!!!")
+        np_ir_image, np_depth_image = get_ir_and_depth_imgs(kinect_client)
+        add_new_img_to_stack(np_ir_image)
+        head_pos = handle_detected_heads()
+        draw_circle(np_ir_image, head_pos.x, head_pos.y, head_pos.radius)
+        notify_renderer(head_pos, np_depth_image, position_server)
+    notify_renderer()
 
 
-def send_head_data_to_rendering_server(cascades):
-    print("called")
-    position_server = PositionServer(40007)
-    # To run without physical kinect, type "fake", otherwise type "real"
-    kinect_client = _get_kinect_client("fake")
-    last_count = 0
-    while(1):
-        img_set, last_count = kinect_client.navirice_get_image()
-        if(img_set is None
-                or img_set.IR.width == 0
-                or img_set.Depth.width == 0):
-            print("none image")
-            continue
+def mediator(kinect_type="real", data_to_renderer=True, threaded=False, ):
+    """Based on given parameters, will run the program.
 
-        np_ir_image = navirice_ir_to_np(img_set.IR)
-        np_depth_image = navirice_image_to_np(img_set.Depth, scale=False)
+    The following are the default values
+    kinect_type="real"      Requires physical kinect to be connected.
+        can also be "fake"
+    data_to_renderer=True   Creates PositionalServer that sends head data.
+    threaded=False          Runs Haar Cascades in threads
+    """
+    pass
 
-        potential = get_head_from_img(np_ir_image, cascades, should_scale=False)
-        if potential is None:
-            continue
-        head_location = potential
 
-        # Debug Images
-        # cv2.circle(np_ir_image, (0, 0), 5, (255, 255, 255),
-                # thickness=10, lineType=8, shift=0)
-        cv2.imshow("IR", np_ir_image) # show preview
-        cv2.imshow("Depth", np_depth_image) # show preview
 
-        (render_x, render_y, render_depth) = _calculate_render_info(
-                np_depth_image, head_location)
-
-        print("Render DATA: x:{}, y:{}, depth:{}".format(
-            render_x, render_y, render_depth))
-        position_server.set_values(render_x, render_y, render_depth)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
 
 def _get_kinect_client(kinect_type="real"):
     """Gives back fake kinect client if kinect_type is fake, otherwise 
@@ -142,27 +69,33 @@ def _get_kinect_client(kinect_type="real"):
     return kinect_client
 
 
-def _calculate_render_info(depth_image, head_location):
-    """Returns -1 to 1 for x and y, and meters to head location for depth."""
-    image_height= depth_image.shape[0]
-    image_width = depth_image.shape[1]
-    (x, y, radius) = head_location
-
-    x_render = (x/image_width * 2) - 1
-    y_render  = -((y/image_height * 2) - 1)
-
-    # I think y and x should be flipped, according to kinect readings
-    raw_depth_at_head = float(depth_image[int(y), int(x)])
-    # Rendering server wants depth in meters
-    # First time I get to write magic numbers yay!
-    # Conversion taken from http://shiffman.net/p5/kinect/
-    #depth_render = 1.0 / (raw_depth_at_head * -0.0030711016 + 3.3309495161);
-    depth_render = raw_depth_at_head
+def initialize_haar_threads(thread_count=2):
+    for i in range(thread_count):
+        thread = Thread(target=thread_worker)
+        thread.daemon = True
+        thread.start()
 
 
-    print("raw_data DATA: x:{}, y:{} raw:{} scaled:{}".format(
-        x, y, raw_depth_at_head, depth_render))
-    return (x_render, y_render, depth_render)
+def thread_worker():
+    faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+    faceCascade1 = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
+    faceCascade2 = cv2.CascadeClassifier('haarcascade_frontalface_alt2.xml')
+    sideCascade = cv2.CascadeClassifier('haarcascade_profileface.xml')
+    cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
+    while True:
+        stack_mutex.acquire()
+        img = stack.pop() if len(stack) > 0 else None
+        stack_mutex.release()
+        if img is None:
+            continue
+        # potential_location is (x, y, radius)
+        potential_location = get_head_from_img(img, cascades)
+        if potential_location is None:
+            continue
+        queue_mutex.acquire()
+        queue_head = QueueHead(3, potential_location)
+        detected_heads_queue.append(queue_head)
+        queue_mutex.release()
 
 
 def get_head_from_img(np_image, cascades, should_scale=True):
@@ -177,14 +110,11 @@ def get_head_from_img(np_image, cascades, should_scale=True):
     potential_boxes = _run_cascades(image, cascades)
 
     if(len(potential_boxes) == 0):
-        # cv2.imshow("ir", image)
         return None
 
     (x, y, radius) = _get_head_from_boxes(image, potential_boxes, should_scale)
-    # Debug show image ir
-    #cv2.imshow("ir", image)
-
-    return (x, y, radius)
+    head_pos = HeadPos(x, y, radius)
+    return head_pos
 
 
 def _run_cascades(image, cascades):
@@ -214,7 +144,6 @@ def _get_head_from_boxes(image, boxes, should_scale=True):
 
     returns x, y, and radius from head detected boxes. Scaled to domains of 0-1
     """
-    print("FACE DETECTED")
     image_height= image.shape[0]
     image_width = image.shape[1]
 
@@ -223,13 +152,6 @@ def _get_head_from_boxes(image, boxes, should_scale=True):
     y = top_left_y + box_height/2
     radius = max(box_width, box_height)/2
 
-    # Debug draw circle/rectangle on face
-    cv2.circle(image, (int(x), int(y)), int(radius), (255, 255, 255), thickness=10, lineType=8, shift=0)
-    cv2.rectangle(
-            image,
-            (int(top_left_x), int(top_left_y)),
-            (int(top_left_x + box_width), int(top_left_y + box_height)),
-            (255, 255, 255), 2)
     if should_scale:
         x = x/image_width
         y = y/image_height
@@ -238,34 +160,66 @@ def _get_head_from_boxes(image, boxes, should_scale=True):
     return (x, y, radius)
 
 
-def kinect_head_detect_test(cascades):
-    kinect_client = _get_kinect_client("fake")
-    last_count = 0
-    while(1):
-        img_set, last_count = kinect_client.navirice_get_image()
-        if(img_set != None
-                and img_set.IR.width > 0
-                and img_set.Depth.width > 0):
-            print("IR width: {}\nIR height: {}\nIR channels: {}\n".format(
-                img_set.IR.width, img_set.IR.height, img_set.IR.channels))
-            np_image = navirice_ir_to_np(img_set.IR)
-            get_head_from_img(np_image, cascades)
-            cv2.imshow("IR", np_image) # show preview
-            #cv2.imshow("IR", cv2.resize(np_image,None,fx=2.0, fy=2.0, interpolation = cv2.INTER_CUBIC)) #show preview, but bigger
+def get_ir_and_depth_imgs(kinect_client):
+    """Returns ir and depth iamges as numpy arrays from kinect_client."""
+    img_set, last_count = kinect_client.navirice_get_next_image(mode="head")
+    np_image = navirice_ir_to_np(img_set.IR)
+    np_depth_image = navirice_image_to_np(img_set.Depth)
+    return np_image, np_depth_image
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
 
-def main():
-    """Main to test this function. Should not be run for any other reason."""
-    faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-    faceCascade1 = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
-    faceCascade2 = cv2.CascadeClassifier('haarcascade_frontalface_alt2.xml')
-    sideCascade = cv2.CascadeClassifier('haarcascade_profileface.xml')
-    cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
-    # smart_threaded_haar_test()
-    # kinect_head_detect_test(cascades)
-    send_head_data_to_rendering_server(cascades)
+def add_new_img_to_stack(np_image):
+    stack_mutex.acquire()
+    stack.append(np_image)
+    stack_mutex.release()
+
+
+def handle_detected_heads():
+    """Read data in from global detected_heads_queue if any and does something
+    with it based on inputs."""
+    head_pos = None
+    while head_pos == None:
+        queue_mutex.acquire()
+        global detected_heads_queue
+        if len(detected_heads_queue) == 0:
+            queue_mutex.release()
+            continue
+        head_pos = detected_heads_queue[0].head_pos
+        detected_heads_queue = [] # Clear detected heads
+        queue_mutex.release()
+    return head_pos
+
+
+def draw_circle(np_image, x, y, radius):
+    image_height= np_image.shape[0]
+    image_width = np_image.shape[1]
+    cv2.circle(np_image, (int(x*image_width), int(y*image_height)),
+            int(radius*image_width), (255, 255, 255), thickness=5,
+            lineType=8, shift=0)
+    cv2.imshow("herromyfriend", np_image)
+    cv2.waitKey(1)
+
+
+def notify_renderer(head_data, np_depth_image, position_server):
+    """
+    Expects this to have already happened:
+    position_server = PositionServer(40007)
+    """
+    (render_x, render_y, render_depth) = _calculate_render_info(
+            np_depth_image, head_data)
+    position_server.set_values(render_x, render_y, render_depth)
+
+
+def _calculate_render_info(depth_image, head_pos):
+    """Reformats x and y to range -1 to 1, and depth in centimeters."""
+    x, y, radius = head_pos.x, head_pos.y, head_pos.radius
+    image_height= depth_image.shape[0]
+    image_width = depth_image.shape[1]
+    x_render = (x/image_width * 2) - 1
+    y_render  = -((y/image_height * 2) - 1)
+    # y and x are flipped, according to kinect readings
+    depth_render = float(depth_image[int(y), int(x)])
+    return (x_render, y_render, depth_render)
 
 
 if __name__ == "__main__":

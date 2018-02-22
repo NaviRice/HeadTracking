@@ -1,3 +1,4 @@
+#!/bin/python
 from position_server import PositionServer
 
 from threading import Thread

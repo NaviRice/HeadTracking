@@ -47,7 +47,7 @@ class KinectClient:
  
     
     def navirice_get_image(self):
-        print("---Requesting new image...")
+        #print("---Requesting new image...")
         request_msg = navirice_image_pb2.ProtoRequest()
         request_msg.state = navirice_image_pb2.ProtoRequest.IMAGE
         request_msg.count = 1
@@ -57,26 +57,26 @@ class KinectClient:
         count_obj = navirice_image_pb2.ProtoImageCount()
         count_obj.ParseFromString(count_msg)
         count = count_obj.count
-        print("image count: ", count)
+        #print("image count: ", count)
 
         continue_msg = navirice_image_pb2.ProtoAcknowledge()
         continue_msg.count = 1
         if self.last_count >= count:
-            print("Requesting stop because image count not new")
+            #print("Requesting stop because image count not new")
             continue_msg.state = navirice_image_pb2.ProtoAcknowledge.STOP
             bytes_sent = self.s.send(continue_msg.SerializeToString())
             return None, self.last_count
         else:
-            print("Requesting --continue")
+            #print("Requesting --continue")
             continue_msg.state = navirice_image_pb2.ProtoAcknowledge.CONTINUE
             bytes_sent = self.s.send(continue_msg.SerializeToString())
        	
         data = "".encode()
         b_size = count_obj.byte_count
-        print("going to receive ", b_size, " bytes")
+        #print("going to receive ", b_size, " bytes")
         t = self.s.recv(b_size, socket.MSG_WAITALL)
         data += t
-        print("received total of ", len(data), " bytes")
+        #print("received total of ", len(data), " bytes")
         img_set = navirice_image_pb2.ProtoImageSet()
         img_set.ParseFromString(data)
         self.last_count = count

@@ -91,8 +91,8 @@ def _get_head_from_boxes(image, boxes):
     scaled_radius = max(box_width/image_width, box_height/image_height)/2
 
     # Debug draw circle/rectangle on face
-    cv2.circle(image, (int(x), int(y)), int(radius), (255, 255, 255), thickness=10, lineType=8, shift=0)
-#    cv2.rectangle(image, (x, y), (x+box_width, int(y+box_height)), (255, 255, 255), 2)
+    #cv2.circle(image, (int(x), int(y)), int(radius), (255, 255, 255), thickness=10, lineType=8, shift=0)
+    #cv2.rectangle(image, (x, y), (x+box_width, int(y+box_height)), (255, 255, 255), 2)
 
     return (scaled_x, scaled_y, scaled_radius)
 

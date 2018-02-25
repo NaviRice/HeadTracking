@@ -17,21 +17,38 @@ tf.logging.set_verbosity(tf.logging.INFO)
 def cnn_model_fn(features):
     # unkown amount, higrt and width, channel
     input_layer = tf.reshape(features, [-1, 424, 512, 1])
-    encoder1 = coder(max_pool_2x2(input_layer), [10,10,1,12], True)
-    encoder2 = coder(max_pool_2x2(encoder1), [7,7,12,24], True)
-    encoder3 = coder((encoder2), [5,5,24,64], True)
-    #encoder4 = coder((encoder3), [7,7,64,64], True)
-    #encoder5 = coder((encoder4), [7,7,64,64], True)
-    #encoder6 = coder((encoder5), [7,7,64,64], True)
-    
-    encoder_last = coder(max_pool_2x2(encoder3), [7,7,64,64], True)  
 
-    W_fc1 = weight_variable([64*53*64, 1024])
-    encoder_last_flat = tf.reshape(encoder_last, [-1, 64*53*64])
-    h_fc1 = tf.nn.sigmoid(tf.matmul(encoder_last_flat, W_fc1))
+    mp0 = input_layer
+    mp1 = max_pool_2x2(mp0)
+    mp2 = max_pool_2x2(mp1)
+    mp3 = max_pool_2x2(mp2)
+
+    encoder1 = coder(mp1, [10,10,1,2], True)
+    encoder2 = coder(mp2, [10,10,1,4], True)
+    encoder3 = coder(mp3, [10,10,1,4], True)
     
+    encoder4 = coder(encoder1, [10,10,2,4], True)
+    encoder5 = coder(encoder2, [10,10,4,8], True)
+    encoder6 = coder(encoder3, [10,10,4,8], True)
+
+
+    W_fc1 = weight_variable([256*212*4, 1024])
+    encoder4_last_flat = tf.reshape(encoder4, [-1, 256*212*4])
+    h_fc1 = tf.matmul(encoder4_last_flat, W_fc1)
+    
+    W_fc2 = weight_variable([128*106*8, 1024])
+    encoder5_last_flat = tf.reshape(encoder5, [-1, 128*106*8])
+    h_fc2 = tf.matmul(encoder5_last_flat, W_fc2)
+    
+
+    W_fc3 = weight_variable([64*53*8, 1024])
+    encoder6_last_flat = tf.reshape(encoder6, [-1, 64*53*8])
+    h_fc3 = tf.matmul(encoder6_last_flat, W_fc3)
+    
+    merge_layer = tf.nn.sigmoid(h_fc3 + h_fc2 + h_fc1)
+
     W_fc2 = weight_variable([1024, 3])
-    h_fc2 = tf.nn.sigmoid(tf.matmul(h_fc1, W_fc2))
+    h_fc2 = tf.nn.sigmoid(tf.matmul(merge_layer, W_fc2))
 
     return h_fc2
 
@@ -90,14 +107,16 @@ def main():
     kc.navirice_capture_settings(False, True, True)
     
     s_train = False
+    r_train = False
     train_set_input = []
     train_set_expected =[]
 
-    train_set_size = 100
+    train_set_size = 100000
 
     while(True):
         img_set, last_count = kc.navirice_get_image() 
         if(s_train):
+            s_train = False
             if(img_set != None and img_set.IR.width > 0 and img_set.Depth.width > 0):
                 ir_image = navirice_ir_to_np(img_set.IR)
                 depth_image = navirice_image_to_np(img_set.Depth)
@@ -107,18 +126,19 @@ def main():
                 if cv_result is not None: 
                     arr = [cv_result[0], cv_result[1], cv_result[2]]
                     if len(train_set_input) < train_set_size:
-                        train_set_input.append(ir_image)
+                        train_set_input.append(inverted_depth)
                         train_set_expected.append(arr)
                     else:
-                        if(random.randint(0, 10000) > 5000):
+                        if(random.randint(0, 10000) > -1):
                             i = random.randint(0, train_set_size-1)
-                            train_set_input[i] = ir_image
+                            train_set_input[i] = inverted_depth
                             train_set_expected[i] = arr
                 
-                    train_step.run(session=sess, feed_dict={x: train_set_input, y_: train_set_expected})
-                    dp = ir_image.copy()
+                    #train_step.run(session=sess, feed_dict={x: train_set_input, y_: train_set_expected})
+                    dp = inverted_depth.copy()
                     cv2.circle(dp, (int(cv_result[0]*512), int(cv_result[1]*424)), int(cv_result[2]*400), (255, 0, 0), thickness=3, lineType=8, shift=0)
                     cv2.imshow("idl", dp)
+                    print("db count: ", len(train_set_input))
         
         if(img_set != None and img_set.IR.width > 0 and img_set.Depth.width > 0):
             depth_image = navirice_image_to_np(img_set.Depth)
@@ -127,7 +147,7 @@ def main():
             inverted_depth = inverted_depth - depth_image
              
             tests = [] 
-            tests.append(ir_image)
+            tests.append(inverted_depth)
             outs = sess.run(y_conv, feed_dict={x: tests})
             xf = outs[0][0]
             yf = outs[0][1]
@@ -139,11 +159,24 @@ def main():
             cv2.circle(tests[0], (int(xf*512), int(yf*424)), int(radiusf*400), (255, 0, 0), thickness=3, lineType=8, shift=0)
             cv2.imshow("id",tests[0]) 
 
+        if(r_train):
+            tsi=[]
+            tse=[]
+            for i in range(100):
+                random_index = random.randint(0, len(train_set_input)-1)
+                tsi.append(train_set_input[random_index])
+                tse.append(train_set_expected[random_index])
+            print("TRAINING")
+            train_step.run(session=sess, feed_dict={x: tsi, y_: tse})
+
         key = cv2.waitKey(10) & 0xFF
         #print("key: ", key)
 
         if(key == 99):
-            s_train = False
+            r_train = True
+
+        if(key == 100):
+            r_train = False
 
         if(key == 32):
             s_train = True

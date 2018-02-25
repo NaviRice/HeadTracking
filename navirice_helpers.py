@@ -48,8 +48,8 @@ def navirice_ir_to_np(ir_img, scale=255.0, forCV=True):
 
     # Debugging, please remove
     unique, counts = np.unique(np_image, return_counts=True)
-    print(np.asarray((unique, counts)).T)
-    print("yolo{}".format(scale))
+    #print(np.asarray((unique, counts)).T)
+    #print("yolo{}".format(scale))
 
     # Important that this happens after image is scaled.
     if forCV:

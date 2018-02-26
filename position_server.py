@@ -55,3 +55,13 @@ class PositionServer:
                 self.conn_addr = [x for x in self.conn_addr if x[0] != conn]
                 print(addr, " -closed")
                 conn.close()
+
+    def close_all(self):
+        print("Closing all sockets")
+        self.lock.acquire()
+        for conn, addr in self.conn_addr:
+            conn.close()
+        self.lock.release()
+    def close_listen(self):
+        self.close_all()
+        self.s.close()

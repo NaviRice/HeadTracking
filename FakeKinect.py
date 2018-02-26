@@ -32,6 +32,8 @@ class FakeKinectClient:
                 if self.last_count >= 10000:
                     print("Exceeded 10000 images to check, looping")
                     return None
+                    print("Exceeded 10000 images to check")
+                    return None, self.last_count
             self.last_count += 1
         return img_set, self.last_count
 

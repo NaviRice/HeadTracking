@@ -33,7 +33,7 @@ def main():
     """Main to test this function. Should not be run for any other reason."""
     kinect_client = _get_kinect_client("fake")
     position_server = PositionServer(4007)
-    initialize_haar_threads(thread_count=1)
+    initialize_haar_threads(thread_count=4)
     while(1):
         np_ir_image, np_depth_image = get_ir_and_depth_imgs(kinect_client)
         add_new_img_to_stack(np_ir_image)
@@ -162,7 +162,7 @@ def _get_head_from_boxes(image, boxes, should_scale=True):
 
 def get_ir_and_depth_imgs(kinect_client):
     """Returns ir and depth iamges as numpy arrays from kinect_client."""
-    img_set, last_count = kinect_client.navirice_get_next_image(mode="head")
+    img_set, last_count = kinect_client.navirice_get_next_image(mode="default")
     np_image = navirice_ir_to_np(img_set.IR)
     np_depth_image = navirice_image_to_np(img_set.Depth)
     return np_image, np_depth_image

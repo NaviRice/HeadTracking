@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 import os
 import navirice_image_pb2
-import cv2
 import random
 import sys
 

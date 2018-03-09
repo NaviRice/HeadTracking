@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 import os
 import navirice_image_pb2
-import cv2
 import random
 import sys
 
@@ -35,7 +34,7 @@ def main():
     cnt = 0
 
     from navirice_get_image import KinectClient
-    kc = KinectClient('127.0.0.1', 29000)
+    kc = KinectClient('192.168.1.31', 29000)
     kc.navirice_capture_settings(False, True, True)
     
     saver = tf.train.Saver(variables)

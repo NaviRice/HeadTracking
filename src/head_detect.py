@@ -1,6 +1,7 @@
-from navirice_get_image import KinectClient
-from FakeKinect import FakeKinectClient
-from position_server import PositionServer
+import settings
+from kinect.kinect_client import KinectClient
+from kinect.fake_kinect_client import FakeKinectClient
+from position_server.position_server import PositionServer
 from navirice_helpers import navirice_image_to_np
 from navirice_helpers import navirice_ir_to_np
 
@@ -33,7 +34,7 @@ def main():
     """Main to test this function. Should not be run for any other reason."""
     kinect_client = _get_kinect_client("fake")
     position_server = PositionServer(4007)
-    initialize_haar_threads(thread_count=4)
+    initialize_haar_threads(thread_count=8)
     while(1):
         np_ir_image, np_depth_image = get_ir_and_depth_imgs(kinect_client)
         add_new_img_to_stack(np_ir_image)
@@ -77,10 +78,14 @@ def initialize_haar_threads(thread_count=2):
 
 
 def thread_worker():
-    faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-    faceCascade1 = cv2.CascadeClassifier('haarcascade_frontalface_alt.xml')
-    faceCascade2 = cv2.CascadeClassifier('haarcascade_frontalface_alt2.xml')
-    sideCascade = cv2.CascadeClassifier('haarcascade_profileface.xml')
+    faceCascade = cv2.CascadeClassifier(
+            settings.CASCADES_DIR + 'haarcascade_frontalface_default.xml')
+    faceCascade1 = cv2.CascadeClassifier(
+            settings.CASCADES_DIR + 'haarcascade_frontalface_alt.xml')
+    faceCascade2 = cv2.CascadeClassifier(
+            settings.CASCADES_DIR + 'haarcascade_frontalface_alt2.xml')
+    sideCascade = cv2.CascadeClassifier(
+            settings.CASCADES_DIR + 'haarcascade_profileface.xml')
     cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
     while True:
         stack_mutex.acquire()

@@ -1,3 +1,5 @@
+import settings
+
 import navirice_image_pb2
 
 
@@ -16,11 +18,10 @@ class FakeKinectClient:
             - All
             - head
             - nohead"""
-        datafolder = "DATA/"
         img_set = None
         while img_set is None:
             try:
-                file_location = (datafolder + mode
+                file_location = (settings.DATA_DIR + mode
                     + "_" + str(self.last_count)
                     + ".img_set")
                 f = open(file_location, "rb")
@@ -31,8 +32,6 @@ class FakeKinectClient:
                 # File not found, so try another count
                 if self.last_count >= 10000:
                     print("Exceeded 10000 images to check, looping")
-                    return None
-                    print("Exceeded 10000 images to check")
                     return None, self.last_count
             self.last_count += 1
         return img_set, self.last_count

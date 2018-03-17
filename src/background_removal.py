@@ -1,8 +1,8 @@
-from navirice_get_image import KinectClient
-from FakeKinect import FakeKinectClient
+from kinect.kinect_client import KinectClient
+from kinect.fake_kinect_client import FakeKinectClient
 
 from navirice_helpers import navirice_image_to_np
-from navirice_head_detect import get_head_from_img
+from head_detect import get_head_from_img
 
 import cv2
 import numpy as np
@@ -13,9 +13,9 @@ DEFAULT_PORT = 29000        # The same port as used by the server
 
 
 def main():
-    kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    # kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
+    kinect_client = FakeKinectClient(DEFAULT_HOST, DEFAULT_PORT)
     kinect_client.navirice_capture_settings(rgb=False, ir=True, depth=True)
-    # kinect_client = FakeKinectClient(DEFAULT_HOST, DEFAULT_PORT)
     last_count = 0
 
     first_img_set, last_count = _get_next_image(kinect_client)

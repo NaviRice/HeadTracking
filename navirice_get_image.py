@@ -44,8 +44,7 @@ class KinectClient:
         request_msg.capture_setting_value.CopyFrom(settings)
         bytes_sent = self.s.send(request_msg.SerializeToString())
         count_msg = self.s.recv(1024)
- 
-    
+
     def navirice_get_image(self):
         print("---Requesting new image...")
         request_msg = navirice_image_pb2.ProtoRequest()
@@ -70,7 +69,7 @@ class KinectClient:
             print("Requesting --continue")
             continue_msg.state = navirice_image_pb2.ProtoAcknowledge.CONTINUE
             bytes_sent = self.s.send(continue_msg.SerializeToString())
-       	
+
         data = "".encode()
         b_size = count_obj.byte_count
         print("going to receive ", b_size, " bytes")
@@ -82,4 +81,12 @@ class KinectClient:
         self.last_count = count
         return img_set, count
 
+    def navirice_get_next_image(self):
+        """Calls navirice_get_image, until it gets a valid image."""
+        while True:
+            img_set, last_count = self.navirice_get_image()
+            if(img_set != None
+                    and img_set.IR.width > 0
+                    and img_set.Depth.width > 0):
+                return img_set, last_count
 

@@ -14,6 +14,7 @@ class FakeKinectClient:
         Default mode is "irdance"
         Current Available Modes (get data from DATA folder):
             - irdance
+            - default
         Upcomming Modes:
             - All
             - head
@@ -40,7 +41,7 @@ class FakeKinectClient:
         """Takes in rgb, ir, and depth to be similar to KinectClient."""
         pass
 
-    def navirice_get_next_image(self, mode="All"):
+    def navirice_get_next_image(self, mode="default"):
         potential_image = self.navirice_get_image(mode)
         if potential_image == None:
             self.last_count = 1

@@ -34,14 +34,18 @@ def main():
     """Main to test this function. Should not be run for any other reason."""
     kinect_client = _get_kinect_client("fake")
     position_server = PositionServer(4007)
-    initialize_haar_threads(thread_count=8)
+    initialize_haar_threads(thread_count=4)
     while(1):
         np_ir_image, np_depth_image = get_ir_and_depth_imgs(kinect_client)
         add_new_img_to_stack(np_ir_image)
         head_pos = handle_detected_heads()
+        if head_pos is None:
+            continue
         draw_circle(np_ir_image, head_pos.x, head_pos.y, head_pos.radius)
-        notify_renderer(head_pos, np_depth_image, position_server)
-    notify_renderer()
+        cv2.imshow("herromyfriend", np_ir_image)
+        cv2.waitKey(1)
+        # notify_renderer(head_pos, np_depth_image, position_server)
+    # notify_renderer()
 
 
 def mediator(kinect_type="real", data_to_renderer=True, threaded=False, ):
@@ -78,6 +82,7 @@ def initialize_haar_threads(thread_count=2):
 
 
 def thread_worker():
+    # print("Thread worker started")
     faceCascade = cv2.CascadeClassifier(
             settings.CASCADES_DIR + 'haarcascade_frontalface_default.xml')
     faceCascade1 = cv2.CascadeClassifier(
@@ -93,11 +98,13 @@ def thread_worker():
         stack_mutex.release()
         if img is None:
             continue
+        # print("Grab image from stack")
         # potential_location is (x, y, radius)
         potential_location = get_head_from_img(img, cascades)
         if potential_location is None:
             continue
         queue_mutex.acquire()
+        # print("Found head location put in queue head queue")
         queue_head = QueueHead(3, potential_location)
         detected_heads_queue.append(queue_head)
         queue_mutex.release()
@@ -167,7 +174,8 @@ def _get_head_from_boxes(image, boxes, should_scale=True):
 
 def get_ir_and_depth_imgs(kinect_client):
     """Returns ir and depth iamges as numpy arrays from kinect_client."""
-    img_set, last_count = kinect_client.navirice_get_next_image(mode="default")
+    print("Get image from kinect client")
+    img_set, last_count = kinect_client.navirice_get_next_image()
     np_image = navirice_ir_to_np(img_set.IR)
     np_depth_image = navirice_image_to_np(img_set.Depth)
     return np_image, np_depth_image
@@ -188,9 +196,12 @@ def handle_detected_heads():
         global detected_heads_queue
         if len(detected_heads_queue) == 0:
             queue_mutex.release()
-            continue
+            print("Found not head")
+            return;
+        print("Found head")
         head_pos = detected_heads_queue[0].head_pos
-        detected_heads_queue = [] # Clear detected heads
+        detected_heads_queue.pop(0)
+        # detected_heads_queue = [] # Clear detected heads
         queue_mutex.release()
     return head_pos
 

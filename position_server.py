@@ -9,6 +9,7 @@ class PositionServer:
         self.port = port
         self.host = ''
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.s.bind((self.host, self.port))
         self.s.listen(1)
         self.lock = threading.Lock()

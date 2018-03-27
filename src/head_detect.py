@@ -21,6 +21,7 @@ queue_mutex = Lock()
 stack_mutex = Lock()
 
 HeadPos = namedtuple('HeadPos', 'x y radius')
+prev_location = (0, 0, 0, 0)
 
 class QueueHead():
 
@@ -38,7 +39,7 @@ def main():
     while(1):
         np_ir_image, np_depth_image = get_ir_and_depth_imgs(kinect_client)
         add_new_img_to_stack(np_ir_image)
-        head_pos = handle_detected_heads(np_ir_image, np_depth_image, position_server)
+        handle_detected_heads(np_ir_image, np_depth_image, position_server)
 
 
 def mediator(kinect_type="real", data_to_renderer=True, threaded=False, ):
@@ -111,13 +112,35 @@ def get_head_from_img(np_image, cascades, should_scale=True):
         None (if head is not detected
     """
     # Since image should be ir, the data does not need to be grayscaled
-    image = np_image
+    global prev_location
+    x1 = 0 # to satisy the readjustment if no prev location
+    y1 = 0
+    image_height= np_image.shape[0]
+    image_width = np_image.shape[1]
+    if (prev_location[0] == 0):
+        image = np_image
+    else: 
+        x1 = int(prev_location[0] * image_width)
+        y1 = int(prev_location[1] * image_height)
+        x2 = int(prev_location[2] * image_width)
+        y2 = int(prev_location[3] * image_height)
+        # import pdb; pdb.set_trace()
+        image = np_image[y1:y2, x1:x2]
+
     potential_boxes = _run_cascades(image, cascades)
 
     if(len(potential_boxes) == 0):
         return None
 
-    (x, y, radius) = _get_head_from_boxes(image, potential_boxes, should_scale)
+    (x, y, radius) = _get_head_from_boxes(image, potential_boxes, should_scale = False)
+    # todo: Need to add xy here again
+    (x, y, radius) = (x+x1, y+y1, radius)
+    x = x/image_width
+    y = y/image_height
+    (top_left_x, top_left_y, box_width, box_height) = potential_boxes[0]
+    radius = max(box_width/image_width, box_height/image_height)/2
+
+
     head_pos = HeadPos(x, y, radius)
     return head_pos
 
@@ -192,6 +215,11 @@ def handle_detected_heads(np_ir_image, np_depth_image, position_server):
         cv2.imshow("herromyfriend", np_ir_image)
         cv2.waitKey(1)
         notify_renderer(head_pos, np_depth_image, position_server)
+        print("jaja")
+        global prev_location
+        prev_location = (head_pos.x - head_pos.radius, head_pos.y - head_pos.radius,
+                        head_pos.x + head_pos.radius, head_pos.y + head_pos.radius)
+        print(prev_location)
 
     queue_mutex.release()
 

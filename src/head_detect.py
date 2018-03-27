@@ -32,20 +32,13 @@ class QueueHead():
 
 def main():
     """Main to test this function. Should not be run for any other reason."""
-    kinect_client = _get_kinect_client("fake")
+    kinect_client = _get_kinect_client("real")
     position_server = PositionServer(4007)
-    initialize_haar_threads(thread_count=4)
+    initialize_haar_threads(thread_count=2)
     while(1):
         np_ir_image, np_depth_image = get_ir_and_depth_imgs(kinect_client)
         add_new_img_to_stack(np_ir_image)
-        head_pos = handle_detected_heads()
-        if head_pos is None:
-            continue
-        draw_circle(np_ir_image, head_pos.x, head_pos.y, head_pos.radius)
-        cv2.imshow("herromyfriend", np_ir_image)
-        cv2.waitKey(1)
-        # notify_renderer(head_pos, np_depth_image, position_server)
-    # notify_renderer()
+        head_pos = handle_detected_heads(np_ir_image, np_depth_image, position_server)
 
 
 def mediator(kinect_type="real", data_to_renderer=True, threaded=False, ):
@@ -174,7 +167,7 @@ def _get_head_from_boxes(image, boxes, should_scale=True):
 
 def get_ir_and_depth_imgs(kinect_client):
     """Returns ir and depth iamges as numpy arrays from kinect_client."""
-    print("Get image from kinect client")
+    # print("Get image from kinect client")
     img_set, last_count = kinect_client.navirice_get_next_image()
     np_image = navirice_ir_to_np(img_set.IR)
     np_depth_image = navirice_image_to_np(img_set.Depth)
@@ -187,23 +180,20 @@ def add_new_img_to_stack(np_image):
     stack_mutex.release()
 
 
-def handle_detected_heads():
+def handle_detected_heads(np_ir_image, np_depth_image, position_server):
     """Read data in from global detected_heads_queue if any and does something
     with it based on inputs."""
-    head_pos = None
-    while head_pos == None:
-        queue_mutex.acquire()
-        global detected_heads_queue
-        if len(detected_heads_queue) == 0:
-            queue_mutex.release()
-            print("Found not head")
-            return;
-        print("Found head")
+    queue_mutex.acquire()
+    global detected_heads_queue
+    while(len(detected_heads_queue) != 0):
         head_pos = detected_heads_queue[0].head_pos
-        detected_heads_queue.pop(0)
-        # detected_heads_queue = [] # Clear detected heads
-        queue_mutex.release()
-    return head_pos
+        detected_heads_queue.pop()
+        draw_circle(np_ir_image, head_pos.x, head_pos.y, head_pos.radius)
+        cv2.imshow("herromyfriend", np_ir_image)
+        cv2.waitKey(1)
+        notify_renderer(head_pos, np_depth_image, position_server)
+
+    queue_mutex.release()
 
 
 def draw_circle(np_image, x, y, radius):

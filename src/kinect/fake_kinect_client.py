@@ -1,3 +1,4 @@
+from time import sleep
 import settings
 
 import navirice_image_pb2
@@ -35,6 +36,7 @@ class FakeKinectClient:
                     print("Exceeded 10000 images to check, looping")
                     return None, self.last_count
             self.last_count += 1
+        sleep(0.03)
         return img_set, self.last_count
 
     def navirice_capture_settings(self, rgb, ir, depth):

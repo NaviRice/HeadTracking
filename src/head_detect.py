@@ -15,44 +15,26 @@ DEFAULT_HOST = '127.0.0.1'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
 
 detected_heads_queue = []
-stack = []
+np_img_stack = []
 
 queue_mutex = Lock()
 stack_mutex = Lock()
 
-HeadPos = namedtuple('HeadPos', 'x y radius')
-
-class QueueHead():
-
-    def __init__(self, count, head_pos):
-        """Head is a named tuple HeadPos (x, y, radius)."""
-        self.count = count
-        self.head_pos = head_pos
+# namedtuples can be treated as small immutable classes
+# Numpy image set, similar to protobuf img_set except with numpy images
+Np_img_set = namedtuple('Np_img_set', 'img_count ir depth')
+HeadData = namedtuple('HeadData', 'x y radius depth')
+DetectedHead = namedtuple('DetectedHead', 'img_count head_data')
 
 
 def main():
-    """Main to test this function. Should not be run for any other reason."""
-    kinect_client = _get_kinect_client("real")
+    kinect_client = _get_kinect_client("fake")
     position_server = PositionServer(4007)
-    initialize_haar_threads(thread_count=2)
+    initialize_haar_threads(thread_count=1)
     while(1):
-        np_ir_image, np_depth_image = get_ir_and_depth_imgs(kinect_client)
-        add_new_img_to_stack(np_ir_image)
-        head_pos = handle_detected_heads(np_ir_image, np_depth_image, position_server)
-
-
-def mediator(kinect_type="real", data_to_renderer=True, threaded=False, ):
-    """Based on given parameters, will run the program.
-
-    The following are the default values
-    kinect_type="real"      Requires physical kinect to be connected.
-        can also be "fake"
-    data_to_renderer=True   Creates PositionalServer that sends head data.
-    threaded=False          Runs Haar Cascades in threads
-    """
-    pass
-
-
+        np_img_set = get_np_img_set(kinect_client)
+        add_new_img_set_to_stack(np_img_set)
+        handle_detected_heads(np_img_set, position_server)
 
 
 def _get_kinect_client(kinect_type="real"):
@@ -68,14 +50,15 @@ def _get_kinect_client(kinect_type="real"):
 
 
 def initialize_haar_threads(thread_count=2):
-    for i in range(thread_count):
-        thread = Thread(target=thread_worker)
+    for _ in range(thread_count):
+        thread = Thread(target=haar_thread)
         thread.daemon = True
         thread.start()
 
 
-def thread_worker():
-    # print("Thread worker started")
+def haar_thread():
+    """Adds data to detected_heads_queue by running Haar cascades from the np_img_stack.
+    Cascades must be created per thread."""
     faceCascade = cv2.CascadeClassifier(
             settings.CASCADES_DIR + 'haarcascade_frontalface_default.xml')
     faceCascade1 = cv2.CascadeClassifier(
@@ -85,41 +68,39 @@ def thread_worker():
     sideCascade = cv2.CascadeClassifier(
             settings.CASCADES_DIR + 'haarcascade_profileface.xml')
     cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
+
     while True:
+        # Todo: use count so that you only get newer np_img_sets
         stack_mutex.acquire()
-        img = stack.pop() if len(stack) > 0 else None
+        np_img_set = np_img_stack.pop() if len(np_img_stack) > 0 else None
         stack_mutex.release()
-        if img is None:
+        if np_img_set is None:
             continue
-        # print("Grab image from stack")
-        # potential_location is (x, y, radius)
-        potential_location = get_head_from_img(img, cascades)
-        if potential_location is None:
+
+        potential_head_data = get_detected_head(np_img_set, cascades)
+        if potential_head_data is None:
             continue
+        head_data = potential_head_data
+
+        detected_head = DetectedHead(np_img_set.img_count, head_data)
         queue_mutex.acquire()
-        # print("Found head location put in queue head queue")
-        queue_head = QueueHead(3, potential_location)
-        detected_heads_queue.append(queue_head)
+        detected_heads_queue.append(detected_head)
         queue_mutex.release()
 
 
-def get_head_from_img(np_image, cascades, should_scale=True):
-    """Detects head from image and returns location of it.
+def get_detected_head(np_img_set, cascades):
+    """Detects a head and returns HeadData depending on input.
 
-    returns:
-        Tuple of x, y, and radius values, where domains are 0-1
-        None (if head is not detected
-    """
-    # Since image should be ir, the data does not need to be grayscaled
-    image = np_image
-    potential_boxes = _run_cascades(image, cascades)
+    Head data is scaled normalized, x, y, and radius go from 0 to 1.
+    depth is same as raw data"""
+    potential_boxes = _run_cascades(np_img_set.ir, cascades)
 
     if(len(potential_boxes) == 0):
         return None
+    boxes = potential_boxes
 
-    (x, y, radius) = _get_head_from_boxes(image, potential_boxes, should_scale)
-    head_pos = HeadPos(x, y, radius)
-    return head_pos
+    head_data = _get_head_data_from_boxes(np_img_set, boxes)
+    return head_data
 
 
 def _run_cascades(image, cascades):
@@ -140,59 +121,84 @@ def _run_cascades(image, cascades):
     return boxes
 
 
-def _get_head_from_boxes(image, boxes, should_scale=True):
+def _get_head_data_from_boxes(np_img_set, boxes):
     """Expects a list of boxes, or will throw an error.
 
     Right now, it just takes the first box in the potential boxes (basically
      only counting for one haar cascade), but is left as a list for future
      optimization if needed.
 
-    returns x, y, and radius from head detected boxes. Scaled to domains of 0-1
+    returns a HeadData tuple (includes x, y, radius, and depth). Scaled to domains of 0-1
     """
-    image_height= image.shape[0]
-    image_width = image.shape[1]
 
+    # Get center of box
     (top_left_x, top_left_y, box_width, box_height) = boxes[0]
     x = top_left_x + box_width/2
     y = top_left_y + box_height/2
     radius = max(box_width, box_height)/2
+    # y and x are flipped, according to kinect readings
+    depth = float(np_img_set.depth[int(y), int(x)])
 
-    if should_scale:
-        x = x/image_width
-        y = y/image_height
-        radius = max(box_width/image_width, box_height/image_height)/2
+    head_data = HeadData(x, y, radius, depth)
+    head_data = normalize_head_data(np_img_set.ir, box_width, box_height, head_data)
 
-    return (x, y, radius)
+    return head_data 
+
+def normalize_head_data(image, box_width, box_height, head_data):
+    """Change head data from whatever it's scale to 0-1 for x, y, and radius.
+    Depth stays the same."""
+    image_height = image.shape[0]
+    image_width = image.shape[1]
+    x = head_data.x/image_width
+    y = head_data.y/image_height
+    radius = max(box_width/image_width, box_height/image_height)/2
+    depth = head_data.depth # Depth should not scale
+    head_data = HeadData(x, y, radius, depth)
+    return head_data
 
 
-def get_ir_and_depth_imgs(kinect_client):
-    """Returns ir and depth iamges as numpy arrays from kinect_client."""
-    # print("Get image from kinect client")
+def get_np_img_set(kinect_client):
+    """Returns a img set of ir and depth iamges as numpy arrays from kinect_client.
+    
+    Also uses kinect_clients last_count to keep track of what image order."""
     img_set, last_count = kinect_client.navirice_get_next_image()
-    np_image = navirice_ir_to_np(img_set.IR)
+    np_ir_image = navirice_ir_to_np(img_set.IR)
     np_depth_image = navirice_image_to_np(img_set.Depth)
-    return np_image, np_depth_image
+    np_img_set = Np_img_set(last_count, np_ir_image, np_depth_image)
+    return np_img_set
 
 
-def add_new_img_to_stack(np_image):
+def add_new_img_set_to_stack(np_image_set):
+    # Do in need global here? Todo
     stack_mutex.acquire()
-    stack.append(np_image)
+    np_img_stack.append(np_image_set)
     stack_mutex.release()
 
-
-def handle_detected_heads(np_ir_image, np_depth_image, position_server):
+# prev_head_data = HeadData(0, 0, 0, 0)
+def handle_detected_heads(np_img_set, position_server):
     """Read data in from global detected_heads_queue if any and does something
     with it based on inputs."""
+    global prev_head_data
     queue_mutex.acquire()
-    global detected_heads_queue
-    while(len(detected_heads_queue) != 0):
-        head_pos = detected_heads_queue[0].head_pos
-        detected_heads_queue.pop()
-        draw_circle(np_ir_image, head_pos.x, head_pos.y, head_pos.radius)
-        cv2.imshow("herromyfriend", np_ir_image)
+    global detected_heads_queue # Do I need global here?
+    if len(detected_heads_queue) == 0: # Draw image without circle if none detected
+        cv2.imshow("herromyfriend", np_img_set.ir)
         cv2.waitKey(1)
-        notify_renderer(head_pos, np_depth_image, position_server)
+        # draw_circle(np_img_set.ir, prev_head_data.x, prev_head_data.y, prev_head_data.radius)
 
+    while(len(detected_heads_queue) != 0):
+        detected_head = detected_heads_queue.pop(0)
+        # possibly loose data but may decrease latency:
+        # detected_head = detected_heads_queue.pop()
+        # detected_heads_queue = []
+        # Not convinced that that actually matters though due to quick loop that
+        # quickly displays things in order.
+        head_data = detected_head.head_data
+        draw_circle(np_img_set.ir, head_data.x, head_data.y, head_data.radius)
+        render_head_data = _calculate_render_info(head_data)
+        position_server.set_values(
+                render_head_data.x, render_head_data.y, render_head_data.depth)
+        # prev_head_data = head_data
     queue_mutex.release()
 
 
@@ -206,27 +212,20 @@ def draw_circle(np_image, x, y, radius):
     cv2.waitKey(1)
 
 
-def notify_renderer(head_data, np_depth_image, position_server):
-    """
-    Expects this to have already happened:
-    position_server = PositionServer(40007)
-    """
-    (render_x, render_y, render_depth) = _calculate_render_info(
-            np_depth_image, head_data)
-    position_server.set_values(render_x, render_y, render_depth)
-
-
-def _calculate_render_info(depth_image, head_pos):
-    """Reformats x and y to range -1 to 1, and depth in centimeters."""
-    x, y, radius = head_pos.x, head_pos.y, head_pos.radius
-    image_height= depth_image.shape[0]
-    image_width = depth_image.shape[1]
-    x_render = (x/image_width * 2) - 1
-    y_render  = -((y/image_height * 2) - 1)
-    # y and x are flipped, according to kinect readings
-    depth_render = float(depth_image[int(y), int(x)])
-    return (x_render, y_render, depth_render)
+def _calculate_render_info(head_data):
+    """Reformats x and y from 0 to 1 range to -1 to 1 range."""
+    x, y, = head_data.x, head_data.y
+    x_render = (x * 2) - 1
+    y_render  = -((y * 2) - 1)
+    head_data = HeadData(x_render, y_render, head_data.radius, head_data.depth)
+    return head_data
 
 
 if __name__ == "__main__":
     main()
+
+# Legacy code potentially used by machine learning portion of the project
+def get_head_from_image():
+    # Todo: Copy from old code before refactor
+    pass
+    

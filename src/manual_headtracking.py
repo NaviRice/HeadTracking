@@ -1,5 +1,5 @@
-#!/bin/python
-from position_server import PositionServer
+#!/usr/bin/python
+from position_server.position_server import PositionServer
 
 from threading import Thread
 from tkinter import *
@@ -13,7 +13,7 @@ canvas_width = canvas_height = 500
 
 mouse_scroll_force_update = True
 
-time_interval = 200 #5 fps
+time_interval = 33 #5 fps
 
 def signal_handler(signal, frame):
         position_server.close_listen()

@@ -28,12 +28,13 @@ DetectedHead = namedtuple('DetectedHead', 'img_count head_data')
 
 
 def main():
-    single_thread_main()
-
-
-def single_thread_main():
     kinect_client = _get_kinect_client("real")
     position_server = PositionServer(4007)
+    single_thread_main(kinect_client, position_server)
+    # multithreaded_main(kinect_client, position_server)
+
+
+def single_thread_main(kinect_client, position_server):
     faceCascade = cv2.CascadeClassifier(
             settings.CASCADES_DIR + 'haarcascade_frontalface_default.xml')
     faceCascade1 = cv2.CascadeClassifier(
@@ -45,26 +46,30 @@ def single_thread_main():
     cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
 
     while True:
+        start_latency = time.time()
         np_img_set = get_np_img_set(kinect_client)
         if np_img_set is None:
             continue
         potential_head_data = get_detected_head(np_img_set, cascades)
         if potential_head_data is None:
+            # cv2.imshow("herromyfriend", np_img_set.ir)
+            # cv2.waitKey(1)
             continue
+        end_latency = time.time()
+        print(str((end_latency - start_latency)* 1000) + " ms")
         head_data = potential_head_data
+        # cv2.imshow("depth", np_img_set.depth)
         draw_circle(np_img_set.ir, head_data.x, head_data.y, head_data.radius)
         render_head_data = _calculate_render_info(head_data)
         position_server.set_values(
                 render_head_data.x, render_head_data.y, render_head_data.depth)
+        # print("Render data: {} {} {}".format(render_head_data.x, render_head_data.y, render_head_data.depth))
+        print("depth data: {2}".format(render_head_data.x, render_head_data.y, render_head_data.depth))
         # prev_head_data = head_data
 
 
-
-
-def multithreaded_main():
-    kinect_client = _get_kinect_client("real")
-    position_server = PositionServer(4007)
-    initialize_haar_threads(thread_count=2)
+def multithreaded_main(kinect_client, position_server):
+    initialize_haar_threads(thread_count=1)
     while(1):
         np_img_set = get_np_img_set(kinect_client)
         add_new_img_set_to_stack(np_img_set)
@@ -198,6 +203,23 @@ def get_np_img_set(kinect_client):
     img_set, last_count = kinect_client.navirice_get_next_image()
     np_ir_image = navirice_ir_to_np(img_set.IR)
     np_depth_image = navirice_image_to_np(img_set.Depth)
+    # Todo check if depth is actually ir rn.
+    (height, width, _) = np_ir_image.shape
+
+    # Quick Scaling Down
+    scale_value = 0.5
+    width = int(width * scale_value)
+    height = int(height * scale_value)
+    np_ir_image = cv2.resize(np_ir_image, dsize=(width, height), interpolation=cv2.INTER_CUBIC)
+    np_depth_image = cv2.resize(np_depth_image, dsize=(width, height), interpolation=cv2.INTER_CUBIC)
+
+    
+    # Quick Cropping
+    # height = int((1.0/3.0) * height)
+    # width = int(0.5 * width)
+    # np_ir_image = np_ir_image[height:, :width]
+    # np_depth_image = np_depth_image[height:, :width]
+
     np_img_set = Np_img_set(last_count, np_ir_image, np_depth_image)
     return np_img_set
 
@@ -251,7 +273,8 @@ def _calculate_render_info(head_data):
     x, y, = head_data.x, head_data.y
     x_render = (x * 2) - 1
     y_render  = -((y * 2) - 1)
-    head_data = HeadData(x_render, y_render, head_data.radius, head_data.depth)
+    depth = head_data.depth * 1000
+    head_data = HeadData(x_render, y_render, head_data.radius, depth)
     return head_data
 
 

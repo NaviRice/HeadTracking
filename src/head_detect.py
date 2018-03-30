@@ -28,9 +28,43 @@ DetectedHead = namedtuple('DetectedHead', 'img_count head_data')
 
 
 def main():
-    kinect_client = _get_kinect_client("fake")
+    single_thread_main()
+
+
+def single_thread_main():
+    kinect_client = _get_kinect_client("real")
     position_server = PositionServer(4007)
-    initialize_haar_threads(thread_count=1)
+    faceCascade = cv2.CascadeClassifier(
+            settings.CASCADES_DIR + 'haarcascade_frontalface_default.xml')
+    faceCascade1 = cv2.CascadeClassifier(
+            settings.CASCADES_DIR + 'haarcascade_frontalface_alt.xml')
+    faceCascade2 = cv2.CascadeClassifier(
+            settings.CASCADES_DIR + 'haarcascade_frontalface_alt2.xml')
+    sideCascade = cv2.CascadeClassifier(
+            settings.CASCADES_DIR + 'haarcascade_profileface.xml')
+    cascades = [faceCascade, faceCascade1, faceCascade2, sideCascade]
+
+    while True:
+        np_img_set = get_np_img_set(kinect_client)
+        if np_img_set is None:
+            continue
+        potential_head_data = get_detected_head(np_img_set, cascades)
+        if potential_head_data is None:
+            continue
+        head_data = potential_head_data
+        draw_circle(np_img_set.ir, head_data.x, head_data.y, head_data.radius)
+        render_head_data = _calculate_render_info(head_data)
+        position_server.set_values(
+                render_head_data.x, render_head_data.y, render_head_data.depth)
+        # prev_head_data = head_data
+
+
+
+
+def multithreaded_main():
+    kinect_client = _get_kinect_client("real")
+    position_server = PositionServer(4007)
+    initialize_haar_threads(thread_count=2)
     while(1):
         np_img_set = get_np_img_set(kinect_client)
         add_new_img_set_to_stack(np_img_set)

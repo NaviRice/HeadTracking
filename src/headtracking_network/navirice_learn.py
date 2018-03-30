@@ -70,13 +70,14 @@ def load_train_set(data_list, scale_val):
 
                     # set input as both ir and depth into one image with 2 channels
                     # Both are ranges from 0 to 1
-                    ir_image_to_1 = navirice_ir_to_np(img_set.IR, scale=1.0, forCV=False)
-                    combined_image = np.concatenate((ir_image_to_1, depth_image), axis=2)
-                    real.append(combined_image)
+                    # ir_image_to_1 = navirice_ir_to_np(img_set.IR, scale=1.0, forCV=False)
+                    # combined_image = np.concatenate((ir_image_to_1, depth_image), axis=2)
+                    # real.append(combined_image)
+                    real.append(depth_image)
 
-                    cv2.imshow("real-scaled-ir", ir_image_to_1)
-                    cv2.imshow("expected", scaled_bitmap)
-                    cv2.waitKey(100)
+                    #cv2.imshow("real-scaled-ir", depth_image)
+                    #cv2.imshow("expected", scaled_bitmap)
+                    #cv2.waitKey(1)
 
             del img_set
     return (real, expected)
@@ -91,10 +92,10 @@ def load_test_set(data_list):
             del data
             if img_set.IR is not None:
                 depth_image = navirice_image_to_np(img_set.Depth)
-                ir_image = navirice_ir_to_np(img_set.IR, 1.0, forCV=False)
-                combined_image = np.concatenate((ir_image, depth_image), axis=2)
-                # real.append(depth_image)
-                real.append(combined_image)
+                # ir_image = navirice_ir_to_np(img_set.IR, 1.0, forCV=False)
+                # combined_image = np.concatenate((ir_image, depth_image), axis=2)
+                real.append(depth_image)
+                # real.append(combined_image)
             del img_set
     return (real)
 
@@ -113,22 +114,17 @@ def generate_batch(count, real_list, expected_list):
 
 def cnn_model_fn(features):
     # unkown amount, higrt and width, channel
-    input_layer = tf.reshape(features, [-1, 424, 512, 2])
-    encoder1 = coder(input_layer, [10,10,2,32], True)
-    pool1 = max_pool_2x2(encoder1)
-    encoder2 = coder(pool1, [7,7,32,64], True)
-    pool2 = max_pool_2x2(encoder2)
-    encoder3 = coder(pool2, [5,5,64,48], True)  
-    encoder4 = coder(encoder3, [5,5,48,32], True)  
-    encoder5 = coder(encoder4, [5,5,32,24], True)  
-    encoder6 = coder(encoder5, [5,5,24,16], True)  
-    encoder7 = coder(encoder6, [5,5,16,12], True)  
-    encoder8 = coder(encoder7, [5,5,12,8], True)  
-    encoder9 = coder(encoder8, [5,5,8,4], True)   
-    decoder1 = coder(encoder9, [5,5,4,1], False)
+    input_layer = tf.reshape(features, [-1, 424, 512, 1])
+    scaled_layer = tf.image.resize_images(features, [53, 64])
+    encoder1 = coder(scaled_layer, [30, 30, 1, 64], True)
+    encoder2 = coder(encoder1, [5,5,64,32], True)
+    encoder3 = coder(encoder2, [5,5,32,8], True)  
+    encoder9 = coder(encoder3, [5,5,8,2], True)   
+    decoder1 = coder(encoder9, [5,5,2,1], False)
     last = tf.sigmoid(decoder1)
 
-    h_final = tf.reshape(last, [-1, 106, 128]) 
+    # h_final = tf.reshape(last, [-1, 106, 128]) 
+    h_final = tf.reshape(last, [-1, 53, 64]) 
     return h_final
 
 
@@ -163,7 +159,7 @@ def bias_variable(shape):
 
 def main():
     data_list = load_data_file_list("./train_set")
-    (reals, expecteds) = load_train_set(data_list, 1.0/4)
+    (reals, expecteds) = load_train_set(data_list, 1.0/8)
     print("real's shape: " + str(reals[0].shape))
     print("expected's shape: " + str(expecteds[0].shape))
     
@@ -172,9 +168,10 @@ def main():
     
     #two channels
     # x = tf.placeholder(tf.float32, [None, 364, 512, 1])
-    x = tf.placeholder(tf.float32, [None, 424, 512, 2])
+    x = tf.placeholder(tf.float32, [None, 424, 512, 1])
     # y_ = tf.placeholder(tf.float32, [None, 91, 128])
-    y_ = tf.placeholder(tf.float32, [None, 106, 128])
+    # y_ = tf.placeholder(tf.float32, [None, 106, 128])
+    y_ = tf.placeholder(tf.float32, [None, 53, 64])
     # y_ = tf.placeholder(tf.float32, [None, 424, 512])
 
     y_conv = cnn_model_fn(x)
@@ -215,9 +212,9 @@ def main():
     while(True):
         cnt += 1
         print("STEP COUNT: ", cnt)
-        for i in range(1):
+        for i in range(10):
             (reals_i, expecteds_i) = generate_batch(10, reals, expecteds)
-            print("-")
+            print("-", end = '')
             sys.stdout.flush()
             train_step.run(session=sess, feed_dict={x: reals_i, y_: expecteds_i})
 
@@ -228,13 +225,18 @@ def main():
             print("y_conv: {}".format(y_conv.shape))
             print("tests i: {}".format(tests[i].shape))
             outs = sess.run(y_conv, feed_dict={x: [tests[i]]})
-            ir_image, depth_image = tests[i][:,:,0], tests[i][:,:,1]
+            # ir_image, depth_image = tests[i][:,:,0], tests[i][:,:,1]
             # cv2.imshow("input", tests[i])
-            cv2.imshow("input-depth", depth_image)
-            cv2.imshow("input-ir", ir_image)
-            cv2.imshow("output", outs[0])
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            # cv2.imshow("input-depth", depth_image)
+            # cv2.imshow("input-ir", ir_image)
+            id_name = "id" + str(i)
+            o_name = "o"+str(i)
+            cv2.imshow(id_name, tests[i])
+            cv2.imshow(o_name, outs[0])
+            
+        if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
 
 if __name__ == "__main__":
     main()

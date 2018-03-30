@@ -1,5 +1,7 @@
-from navirice_get_image import *
+from navirice_get_image import KinectClient
 from navirice_helpers import navirice_img_set_write_file
+from navirice_helpers import navirice_image_to_np
+from navirice_helpers import navirice_ir_to_np
 import navirice_image_pb2
 
 from tkinter import *
@@ -8,8 +10,8 @@ import cv2
 import numpy as np
 from threading import Thread
 
-DEFAULT_HOST = '127.0.0.1'  # The remote host
-DEFAULT_PORT = 29000        # The same port as used by the server
+HOST = '127.0.0.1'  # The remote host
+PORT = 29000        # The same port as used by the server
 
 
 class Window(Frame):
@@ -39,6 +41,7 @@ class Window(Frame):
         self.pack(fill=BOTH, expand=1)
 
         thread = Thread(target = self.thread_stream)
+        thread.deamon = True
         thread.start()
 
     def print_states(self):
@@ -61,20 +64,24 @@ class Window(Frame):
         self.should_run = False
 
     def thread_stream(self):
+        kc = KinectClient(HOST, PORT)
+        kc.navirice_capture_settings(False, True, True)
+	
         while(self.should_run):
             img_set = None
+
             if(self.should_pull):
-                img_set, self.last_count = navirice_get_image(DEFAULT_HOST, DEFAULT_PORT, self.last_count)
-            if(img_set != None):
-                if self.should_record:
-                    #processThread =Thread(target=navirice_img_set_write_file, args=[self.session_name, img_set, self.last_count])
-                    #processThread.start()
-                    navirice_img_set_write_file(self.session_name, img_set, self.last_count)
-                cv2.imshow("RGB", naviriceImageToNp(img_set.RGB))
-                cv2.imshow("DEPTH", naviriceImageToNp(img_set.Depth))
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    print("q pressed in cv window")
-                del img_set
+                img_set, self.last_count = kc.navirice_get_image()
+                if(img_set != None and img_set.IR.width > 0 and img_set.Depth.width > 0):
+                    if self.should_record:
+                        #processThread =Thread(target=navirice_img_set_write_file, args=[self.session_name, img_set, self.last_count])
+                        #processThread.start()
+                        navirice_img_set_write_file(self.session_name, img_set, self.last_count)
+                    cv2.imshow("IR", navirice_ir_to_np(img_set.IR))
+                    cv2.imshow("DEPTH", navirice_image_to_np(img_set.Depth))
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        print("q pressed in cv window")
+                    del img_set
 
 
 def main():

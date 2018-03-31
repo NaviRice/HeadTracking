@@ -41,9 +41,13 @@ def navirice_ir_to_np(ir_img, scale=255.0, forCV=True):
     ir_count = ir_img.width*ir_img.height*ir_img.channels
     raw_img= np.frombuffer(ir_img.data, dtype=np.float32, count=ir_count)
     np_image = raw_img.reshape((ir_img.height, ir_img.width, ir_img.channels))
+    np_image.flags.writeable = True
 
     # Scale image from highest np image value to given scale
+    np_image[np_image >= 65535] = -1 # Get rid of stuck pixels at high values for high pixel value calculation
     high = np_image.max()
+    # print(high)
+    np_image[np_image == -1] = 65535 # Reset values to avoid clipping.
     np_image = np_image*(scale/high)
 
     # Debugging, please remove

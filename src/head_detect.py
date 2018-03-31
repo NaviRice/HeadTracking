@@ -64,7 +64,7 @@ def single_thread_main(kinect_client, position_server):
         position_server.set_values(
                 render_head_data.x, render_head_data.y, render_head_data.depth)
         # print("Render data: {} {} {}".format(render_head_data.x, render_head_data.y, render_head_data.depth))
-        print("depth data: {2}".format(render_head_data.x, render_head_data.y, render_head_data.depth))
+        # print("depth data: {2}".format(render_head_data.x, render_head_data.y, render_head_data.depth))
         # prev_head_data = head_data
 
 
@@ -220,6 +220,9 @@ def get_np_img_set(kinect_client):
     # np_ir_image = np_ir_image[height:, :width]
     # np_depth_image = np_depth_image[height:, :width]
 
+
+    # Todo map the values of ir max/min after scaling and cropping.
+
     np_img_set = Np_img_set(last_count, np_ir_image, np_depth_image)
     return np_img_set
 
@@ -271,9 +274,9 @@ def draw_circle(np_image, x, y, radius):
 def _calculate_render_info(head_data):
     """Reformats x and y from 0 to 1 range to -1 to 1 range."""
     x, y, = head_data.x, head_data.y
-    x_render = (x * 2) - 1
+    x_render = -((x * 2) - 1)
     y_render  = -((y * 2) - 1)
-    depth = head_data.depth * 1000
+    depth = head_data.depth * 5000
     head_data = HeadData(x_render, y_render, head_data.radius, depth)
     return head_data
 

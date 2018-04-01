@@ -36,19 +36,22 @@ message ProtoImageSet {
 	ProtoImage RGB = 2;
 	ProtoImage Depth = 3;
 	ProtoImage IR = 4;
+	ProtoImage BG =5;
 }
 
 message ProtoCaptureSetting {
 	bool RGB = 1;
 	bool Depth = 2;
 	bool IR = 3;
-	uint64 count = 4;
+	bool BG = 4;
+	uint64 count = 5;
 }
 
 message ProtoRequest {
 	enum ReqType {
 		IMAGE = 0;
 		CAPTURE_SETTING = 1;
+		BACKGROUND_CALIBRATE = 2;
 	}
 	ReqType state = 1;
 	uint64 count = 2;

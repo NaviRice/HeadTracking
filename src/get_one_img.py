@@ -13,7 +13,7 @@ def get_depth_and_ir_from_kinect():
     img_set, last_count = kinect_client.navirice_get_next_image()
 
     np_depth_image = navirice_image_to_np(img_set.Depth, scale=False)
-    np_ir_image = navirice_image_to_np(img_set.Depth, scale=False)
+    np_ir_image = navirice_image_to_np(img_set.IR, scale=False)
     return (np_depth_image, np_ir_image)
 
 

@@ -5,9 +5,9 @@ Head tracking for NaviRice Systems & related tools
 
 ### Prerequisites
 
-- Python 3.6
+- Python v3.6
 - tkinter ( GUI )
-- Pillow ( Image Processing )
+- Pillow v4.2.0 ( Image Processing )
 - Numpy ( Matrix Computing )
 
 ### Running

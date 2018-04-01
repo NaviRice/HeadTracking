@@ -1,5 +1,37 @@
 # HeadTracking
-Head tracking for NaviRice Systems
+Head tracking for NaviRice Systems & related tools
 
-### to use the recorder tool:
-	python3 navirice_record.py
+## Getting Started
+
+### Prerequisites
+
+- Python 3.6
+- tkinter ( GUI )
+- Pillow ( Image Processing )
+- Numpy ( Matrix Computing )
+
+### Running
+
+Navigate into `src`.
+
+#### Recorder
+```
+python3 tools/record_kinect_to_img.py
+```
+
+#### Labeler
+
+To launch the labeler, run the following command in the terminal:
+
+```
+python3 tools/labeler.py
+```
+
+The labels will be generated inside `src/data` folder.
+
+Here is the sreenshot of the labeler:
+
+![](labeler.png)
+
+
+

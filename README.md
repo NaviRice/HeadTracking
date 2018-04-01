@@ -21,12 +21,6 @@ python3 tools/record_kinect_to_img.py
 
 #### Labeler
 
-Please create a data folder under `src` before you move run the labeler:
-
-```
-mkdir data
-```
-
 To launch the labeler, run the following command in the terminal:
 
 ```

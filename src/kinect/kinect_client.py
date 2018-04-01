@@ -29,12 +29,13 @@ class KinectClient:
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.connect((self.host, self.port))
 
-    def navirice_capture_settings(self,  rgb, ir, depth):
+    def navirice_capture_settings(self,  rgb, ir, depth, bg):
         print("---Requesting new settings...")
         settings = navirice_image_pb2.ProtoCaptureSetting()
         settings.IR = ir
         settings.RGB = rgb
         settings.Depth = depth
+        settings.BG = bg
         settings.count = 1
 
         request_msg = navirice_image_pb2.ProtoRequest()

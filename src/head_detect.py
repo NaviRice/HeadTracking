@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import time
 
-DEFAULT_HOST = '127.0.0.1'  # The remote host
+DEFAULT_HOST = '192.168.1.129'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
 
 detected_heads_queue = []

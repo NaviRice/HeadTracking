@@ -33,7 +33,7 @@ def main():
         print(str(width) + " "+ str(height))
         np_bg_image = cv2.resize(np_bg_image, dsize=(width, height), interpolation=cv2.INTER_NEAREST)
         np_bg_image *= 255
-        draw_img(np_bg_image)
+        draw_img(np_bg_image, np_ir_image)
     # multithreaded_main(kinect_client, position_server)
 
 
@@ -51,13 +51,15 @@ def _get_kinect_client(kinect_type="real"):
 
 
 
-def draw_img(np_image):
+def draw_img(np_image, image_2):
     image_height= np_image.shape[0]
     image_width = np_image.shape[1]
 ##    cv2.circle(np_image, (int(x*image_width), int(y*image_height)),
 ##            int(radius*image_width), (255, 255, 255), thickness=5,
 ##            lineType=8, shift=0)
     cv2.imshow("herromyfriend", np_image)
+    cv2.imshow("herromyfriend2", image_2)
+
     cv2.waitKey(1)
 
 

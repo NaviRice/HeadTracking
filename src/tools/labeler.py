@@ -30,7 +30,7 @@ class SelectEyesDialog(tk.Toplevel):
         self._ir_image_data  = self._app._ir_image_data[rect[1]:rect[3], rect[0]:rect[2]]
 
         canvas_width = rect[3] - rect[1]
-        canvas_height  = rect[2] - rect[0]zcq
+        canvas_height  = rect[2] - rect[0]
 
         ir_image=Image.fromarray(self._ir_image_data)
 

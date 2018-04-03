@@ -7,8 +7,13 @@ Head tracking for NaviRice Systems & related tools
 
 - Python v3.6
 - tkinter ( GUI )
-- Pillow v4.2.0 ( Image Processing )
+- Pillow v4.20 ( Image Processing )
 - Numpy ( Matrix Computing )
+
+Run this command in
+```
+pip install -r requirements.txt
+```
 
 ### Running
 

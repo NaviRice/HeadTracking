@@ -1,3 +1,4 @@
+#! /usr/bin/python3
 import settings
 from kinect.kinect_client import KinectClient
 from kinect.fake_kinect_client import FakeKinectClient
@@ -31,6 +32,7 @@ def main():
         (height, width, _) = np_ir_image.shape
         print(str(width) + " "+ str(height))
         np_bg_image = cv2.resize(np_bg_image, dsize=(width, height), interpolation=cv2.INTER_NEAREST)
+        np_bg_image *= 255
         draw_img(np_bg_image)
     # multithreaded_main(kinect_client, position_server)
 

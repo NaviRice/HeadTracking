@@ -7,11 +7,59 @@ from get_one_img import get_depth_and_ir_from_kinect
 from enum import Enum
 import pickle
 
+import cv2
+
 class Selection(Enum):
     NOTHING = 1
     FACE = 2
     LEFT_EYE = 3
     RIGHT_EYE = 4
+
+class SelectEyesDialog(tk.Toplevel):
+    def __init__(self, parent):
+        
+        tk.Toplevel.__init__(self, parent)
+        self.transient(parent)
+
+        self.title("Select Eyes")
+        
+        self._app = parent
+
+        rect = self._app._face_rect
+
+        self._ir_image_data  = self._app._ir_image_data[rect[1]:rect[3], rect[0]:rect[2]]
+
+        canvas_width = rect[3] - rect[1]
+        canvas_height  = rect[2] - rect[0]zcq
+
+        ir_image=Image.fromarray(self._ir_image_data)
+
+        self._canvas_frame = tk.Frame(self)
+        self._canvas_depth = tk.Canvas(self._canvas_frame, 
+           width=canvas_width,
+           height=canvas_height)
+
+        self._canvas_ir = tk.Canvas(self._canvas_frame, 
+           width=canvas_width,
+           height=canvas_height)
+        
+        self._canvas_frame.grid(row=0)
+        self._canvas_ir.grid(row=0, column=0)
+        self._canvas_depth.grid(row=0, column=1)
+
+
+        self._canvas_ir.delete("all")
+
+        self._canvas_ir.ir_photo = ImageTk.PhotoImage(ir_image)
+        self._canvas_ir.create_image(0, 0, image=self._canvas_ir.ir_photo, anchor=tk.NW)
+
+        self._done_btn = tk.Button(self, text="Done", command=self.ok)
+        self._done_btn.grid(row=1)
+
+        self.grab_set()
+
+    def ok(self):
+        self.top.destroy()
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -20,6 +68,9 @@ class Application(tk.Frame):
 
         self._start_x = 0
         self._start_y = 0
+        self._end_x = 0
+        self._end_y = 0
+
         self._count = 0
 
         self._face_rect = None
@@ -97,9 +148,19 @@ class Application(tk.Frame):
 
         elif key == "'r'":
             self._select_right_eye()
-        
+
+        elif key == "'0'":
+            self._face_zoom_in()
+
         elif key == "' '":
             self._next()
+
+    def _face_zoom_in(self):
+        if not self._face_selected:
+            return
+
+        selectEyesDialog = SelectEyesDialog(self)
+        self.master.wait_window(selectEyesDialog)
 
     def _select_face(self):
         self._selection = Selection.FACE
@@ -171,6 +232,10 @@ class Application(tk.Frame):
 
     def _start_selection(self, event):
         if self._selection is Selection.NOTHING:
+            tkMessageBox.showwarning(
+                "No Feature To Label",
+                "Please select a facial feature to label"
+            )
             return
 
         self._start_x = event.x
@@ -270,6 +335,8 @@ class Application(tk.Frame):
 def main():
     root = tk.Tk()
     app = Application(master=root)
+
+    root.lift()
     app.mainloop()
 
 if __name__ == "__main__":

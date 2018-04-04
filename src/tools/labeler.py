@@ -21,6 +21,18 @@ class SelectEyesDialog(tk.Toplevel):
         tk.Toplevel.__init__(self, parent)
         self.transient(parent)
 
+        self._start_x = 0
+        self._start_y = 0
+        self._end_x = 0
+        self._end_y = 0
+
+        self._left_eye_rect = None
+        self._right_eye_rect = None
+
+        self._left_eye_selected = False
+        self._right_eye_selected = False
+        self._selection = Selection.NOTHING
+
         self.title("Select Eyes")
         
         self._app = parent
@@ -28,11 +40,27 @@ class SelectEyesDialog(tk.Toplevel):
         rect = self._app._face_rect
 
         self._ir_image_data  = self._app._ir_image_data[rect[1]:rect[3], rect[0]:rect[2]]
+        self._depth_image_data  = self._app._depth_image_data[rect[1]:rect[3], rect[0]:rect[2]]
 
-        canvas_width = rect[3] - rect[1]
-        canvas_height  = rect[2] - rect[0]
+        image_width = rect[2] - rect[0]
+        image_height = rect[3] - rect[1]
 
-        ir_image=Image.fromarray(self._ir_image_data)
+        self._scale = 6
+
+        canvas_width = image_width * self._scale
+        canvas_height  = image_height * self._scale
+
+        new_ir_image_data = cv2.resize(self._ir_image_data, None, fx=self._scale, fy=self._scale, interpolation = cv2.INTER_CUBIC)
+        new_depth_image_data = cv2.resize(self._depth_image_data, None, fx=self._scale, fy=self._scale, interpolation = cv2.INTER_CUBIC)
+
+        ir_image=Image.fromarray(new_ir_image_data)
+        depth_image=Image.fromarray(new_depth_image_data)
+
+        self._create_widgets(canvas_width, canvas_height, ir_image, depth_image)
+    
+    def _create_widgets(self, canvas_width, canvas_height, ir_image, depth_image):
+        self._hot_key_labels = tk.Label(self, text="E = Select Left Eye(Green)    R = Select Right Eye(Red)     Space = Done")
+        self._hot_key_labels.grid(row=0)
 
         self._canvas_frame = tk.Frame(self)
         self._canvas_depth = tk.Canvas(self._canvas_frame, 
@@ -43,7 +71,7 @@ class SelectEyesDialog(tk.Toplevel):
            width=canvas_width,
            height=canvas_height)
         
-        self._canvas_frame.grid(row=0)
+        self._canvas_frame.grid(row=1)
         self._canvas_ir.grid(row=0, column=0)
         self._canvas_depth.grid(row=0, column=1)
 
@@ -53,13 +81,146 @@ class SelectEyesDialog(tk.Toplevel):
         self._canvas_ir.ir_photo = ImageTk.PhotoImage(ir_image)
         self._canvas_ir.create_image(0, 0, image=self._canvas_ir.ir_photo, anchor=tk.NW)
 
-        self._done_btn = tk.Button(self, text="Done", command=self.ok)
-        self._done_btn.grid(row=1)
+        self._canvas_depth.delete("all")
+
+        self._canvas_depth.depth_photo = ImageTk.PhotoImage(depth_image)
+        self._canvas_depth.create_image(0, 0, image=self._canvas_depth.depth_photo, anchor=tk.NW)
+
+        self._button_frame = tk.Frame(self)
+        self._button_frame.pack()
+
+        self._select_left_eye_btn = tk.Button(self._button_frame, text="Select Left Eye", command=self._select_left_eye)
+        self._select_right_eye_btn = tk.Button(self._button_frame, text="Select Right Eye", command=self._select_right_eye)
+        self._done_btn = tk.Button(self._button_frame, text="Done", command=self._done)
+
+        self._button_frame.grid(row=2, column=0)
+        self._select_left_eye_btn.grid(row=0, column=1)
+        self._select_right_eye_btn.grid(row=0, column=2)
+        self._done_btn.grid(row=0, column=3)
+
+        self._canvas_ir.bind("<Button-1>", self._start_selection)
+        self._canvas_ir.bind("<B1-Motion>", self._show_selection)
+        self._canvas_ir.bind("<ButtonRelease-1>", self._update_selection)
+        self.bind("<Key>", self._key)
 
         self.grab_set()
+    
+    def _key(self, event):
+        key = repr(event.char)
 
-    def ok(self):
-        self.top.destroy()
+        if key == "'e'":
+            self._select_left_eye()
+
+        elif key == "'r'":
+            self._select_right_eye()
+
+        elif key == "' '":
+            self._done()
+
+    def _done(self):
+        if not self._left_eye_selected or not self._right_eye_selected:
+            tkMessageBox.showwarning(
+                "Not Enough Label",
+                "Please label left eye and right eye"
+            )
+            return
+        
+
+        scaled_left_eye_rect = [coord // self._scale for coord in list(self._left_eye_rect)]
+        scaled_right_eye_rect = [coord // self._scale for coord in list(self._right_eye_rect)]
+
+        scaled_left_eye_rect[0] += self._app._face_rect[0]
+        scaled_left_eye_rect[2] += self._app._face_rect[0]
+        scaled_left_eye_rect[1] += self._app._face_rect[1]
+        scaled_left_eye_rect[3] += self._app._face_rect[1]
+
+        scaled_right_eye_rect[0] += self._app._face_rect[0]
+        scaled_right_eye_rect[2] += self._app._face_rect[0]
+        scaled_right_eye_rect[1] += self._app._face_rect[1]
+        scaled_right_eye_rect[3] += self._app._face_rect[1]
+
+        self._app._left_eye_rect = tuple(scaled_left_eye_rect)
+        self._app._right_eye_rect = tuple(scaled_right_eye_rect)
+        self._app._left_eye_selected = True
+        self._app._right_eye_selected = True
+
+        self._app._show_selection(None)
+        self.destroy()
+
+    def _select_left_eye(self):
+        self._selection = Selection.LEFT_EYE
+        self._update_title()
+    
+    def _select_right_eye(self):
+        self._selection = Selection.RIGHT_EYE
+        self._update_title()
+    
+    def _update_title(self):
+        left_eye_selected = ""
+        if self._left_eye_selected:
+            left_eye_selected = "LEFT_EYE"
+
+        right_eye_selected = ""
+        if self._right_eye_selected:
+            right_eye_selected = "RIGHT_EYE"
+        
+        selections = "%s %s" % (left_eye_selected, right_eye_selected)
+
+        self.title(selections)
+    
+    def _start_selection(self, event):
+        if self._selection is Selection.NOTHING:
+            tkMessageBox.showwarning(
+                "No Eye To Label",
+                "Please select an eye to label"
+            )
+            return
+
+        self._start_x = event.x
+        self._start_y = event.y
+    
+    def _show_selection(self, event):
+        if self._selection is Selection.NOTHING:
+            return
+
+        self._end_x = event.x
+        self._end_y = event.y
+
+        self._canvas_ir.delete("all")
+        self._canvas_depth.delete("all")
+
+        self._canvas_ir.create_image(0, 0, image=self._canvas_ir.ir_photo, anchor=tk.NW)
+        self._canvas_depth.create_image(0, 0, image=self._canvas_depth.depth_photo, anchor=tk.NW)
+
+        color = ""
+
+        if self._selection is Selection.LEFT_EYE:
+            color = "green"
+            
+            if self._right_eye_selected:
+                self._canvas_ir.create_rectangle(self._right_eye_rect[0], self._right_eye_rect[1], self._right_eye_rect[2], self._right_eye_rect[3], outline="red")
+                self._canvas_depth.create_rectangle(self._right_eye_rect[0], self._right_eye_rect[1], self._right_eye_rect[2], self._right_eye_rect[3], outline="red")
+        
+        elif self._selection is Selection.RIGHT_EYE:
+            color = "red"
+            
+            if self._left_eye_selected:
+                self._canvas_ir.create_rectangle(self._left_eye_rect[0], self._left_eye_rect[1], self._left_eye_rect[2], self._left_eye_rect[3], outline="green")
+                self._canvas_depth.create_rectangle(self._left_eye_rect[0], self._left_eye_rect[1], self._left_eye_rect[2], self._left_eye_rect[3], outline="green")
+
+        self._canvas_ir.create_rectangle(self._start_x, self._start_y, self._end_x, self._end_y, outline=color)
+        self._canvas_depth.create_rectangle(self._start_x, self._start_y, self._end_x, self._end_y, outline=color)
+
+    def _update_selection(self, event):
+        if self._selection is Selection.LEFT_EYE:
+            self._left_eye_rect = (self._start_x, self._start_y, self._end_x, self._end_y)
+            self._left_eye_selected = True
+        
+        elif self._selection is Selection.RIGHT_EYE:
+            self._right_eye_rect = (self._start_x, self._start_y, self._end_x, self._end_y)
+            self._right_eye_selected = True
+        
+        self._update_title()
 
 class Application(tk.Frame):
     def __init__(self, master=None):
@@ -98,7 +259,7 @@ class Application(tk.Frame):
         canvas_width = 512
         canvas_height = 424
 
-        self._hot_key_labels = tk.Label(self, text="W = Select Face(Blue)    E = Select Left Eye(Green)    R = Select Right Eye(Red)     Space = Next Image")
+        self._hot_key_labels = tk.Label(self, text="W = Select Face(Blue)   0 = Zoom In    E = Select Left Eye(Green)    R = Select Right Eye(Red)     Space = Next Image")
 
 
         self._canvas_frame = tk.Frame(self)
@@ -156,7 +317,11 @@ class Application(tk.Frame):
             self._next()
 
     def _face_zoom_in(self):
-        if not self._face_selected:
+        if not self._face_selected or self._selection is not Selection.FACE:
+            tkMessageBox.showwarning(
+                "Face Not Selected",
+                "Please first select face and then zoom in to select eyes"
+            )
             return
 
         selectEyesDialog = SelectEyesDialog(self)
@@ -245,8 +410,9 @@ class Application(tk.Frame):
         if self._selection is Selection.NOTHING:
             return
 
-        self._end_x = event.x
-        self._end_y = event.y
+        if event is not None:
+            self._end_x = event.x
+            self._end_y = event.y
 
         self._canvas_ir.delete("all")
         self._canvas_depth.delete("all")
@@ -335,8 +501,6 @@ class Application(tk.Frame):
 def main():
     root = tk.Tk()
     app = Application(master=root)
-
-    root.lift()
     app.mainloop()
 
 if __name__ == "__main__":

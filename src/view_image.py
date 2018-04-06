@@ -13,21 +13,25 @@ def main():
     # mode = "All_"
     # mode = "head_"
     # mode = "nohead_"
-    mode = "default_"
+    # mode = "default_"
+    mode = "test_"
     while True:
         try: 
-            f = open("DATA/" + mode + str(count) + ".img_set", "rb")
+            f = open("../DATA/" + mode + str(count) + ".img_set", "rb")
             data = f.read()
             img_set = navirice_image_pb2.ProtoImageSet()
             img_set.ParseFromString(data)
             depth_image = navirice_image_to_np(img_set.Depth)
             IR_image = navirice_ir_to_np (img_set.IR)
-            # cv2.imshow("Hi Can: count: " + str(count), depth_image)
+            BG_image = navirice_image_to_np(img_set.BG)
+            BG_image = cv2.resize(BG_image, (0,0), fx=0.5, fy=0.5) 
             cv2.imshow("Depth", depth_image)
             cv2.imshow("IR", IR_image)
-            cv2.waitKey(50)
+            cv2.imshow("BG", BG_image)
+            print(BG_image)
+            cv2.waitKey(10)
         except FileNotFoundError:
-            print("Stop asking!")
+            print("It's gonna be fine, just be patient!")
             pass
         count += 1
 

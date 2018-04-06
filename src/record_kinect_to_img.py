@@ -1,4 +1,4 @@
-from navirice_get_image import KinectClient
+from kinect.kinect_client import KinectClient
 from navirice_helpers import navirice_img_set_write_file
 from navirice_helpers import navirice_image_to_np
 from navirice_helpers import navirice_ir_to_np
@@ -65,7 +65,7 @@ class Window(Frame):
 
     def thread_stream(self):
         kc = KinectClient(HOST, PORT)
-        kc.navirice_capture_settings(False, True, True)
+        kc.navirice_capture_settings(False, True, True, True)
 	
         while(self.should_run):
             img_set = None

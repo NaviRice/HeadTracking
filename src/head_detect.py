@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import time
 
-DEFAULT_HOST = '192.168.1.129'  # The remote host
+DEFAULT_HOST = '127.0.0.1'  # The remote host
 DEFAULT_PORT = 29000        # The same port as used by the server
 
 detected_heads_queue = []
@@ -52,13 +52,13 @@ def single_thread_main(kinect_client, position_server):
             continue
         potential_head_data = get_detected_head(np_img_set, cascades)
         if potential_head_data is None:
-            # cv2.imshow("herromyfriend", np_img_set.ir)
-            # cv2.waitKey(1)
+            cv2.imshow("herromyfriend", np_img_set.ir)
+            cv2.waitKey(1)
             continue
         end_latency = time.time()
         print(str((end_latency - start_latency)* 1000) + " ms")
         head_data = potential_head_data
-        # cv2.imshow("depth", np_img_set.depth)
+        cv2.imshow("depth", np_img_set.depth)
         draw_circle(np_img_set.ir, head_data.x, head_data.y, head_data.radius)
         render_head_data = _calculate_render_info(head_data)
         position_server.set_values(
@@ -84,7 +84,8 @@ def _get_kinect_client(kinect_type="real"):
         kinect_client = FakeKinectClient(DEFAULT_HOST, DEFAULT_PORT)
     else:
         kinect_client = KinectClient(DEFAULT_HOST, DEFAULT_PORT)
-    kinect_client.navirice_capture_settings(rgb=False, ir=True, depth=True)
+    kinect_client.navirice_capture_settings(rgb=False, ir=True, depth=True, bg=True)
+
     return kinect_client
 
 

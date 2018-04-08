@@ -36,7 +36,19 @@ The labels will be generated inside `src/data` folder.
 
 Here is the sreenshot of the labeler:
 
-![](labeler.png)
+1. Select face
+![](labeler_select_face.png)
 
+2. Zoom in around face
+![](labeler_zoom_in.png)
 
+3. All features are selected
+![](labeler_features_selected.png)
 
+- **Can Alper** - *Initial work* - [calper-ql](https://github.com/calper-ql)
+- **Alex Gaines** - *Initial work* - [roboman2444](https://github.com/roboman2444)
+- **Binam Kayastha** - *Initial work* - [binamkayastha](https://github.com/binamkayastha)
+- **Yang Liu** - *Initial work* - [byliuyang](https://github.com/byliuyang)
+
+## License
+This project is maintained under the MIT License

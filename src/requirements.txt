@@ -1,4 +1,4 @@
 numpy==1.13.3
 opencv_python==3.3.0.10
 protobuf==3.5.2.post1
-Pillow==6.2.0
+Pillow==9.0.0
